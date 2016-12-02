@@ -16,13 +16,14 @@
 #define WELCOME_LENGTH 32
 #define DEFAULT_PORT 6423
 #define INBOX_SIZE (9+MAX_USERNAME+MAX_SUBJECT)*MAXMAILS
+#define MAIL_SIZE 28+(MAX_USERNAME*(TOTAL_TO+1))+MAX_SUBJECT+MAX_CONTENT
 
 int main(int argc, char* argv[])
 {
-	char welcomeMessage[WELCOME_LENGTH], usernameAndPassword[MAX_USERNAME+MAX_PASSWORD+2], password[MAX_PASSWORD+1], inbox[INBOX_SIZE];
-	char recps[TOTAL_TO*(MAX_USERNAME+1)], subj[MAX_SUBJECT+1], ctnt[MAX_CONTENT+1];
+	char welcomeMessage[WELCOME_LENGTH], usernameAndPassword[MAX_USERNAME+MAX_PASSWORD+2], password[MAX_PASSWORD+1], inbox[INBOX_SIZE+1];
+	char recps[TOTAL_TO*(MAX_USERNAME+1)], subj[MAX_SUBJECT+1], ctnt[MAX_CONTENT+1], inMail[MAIL_SIZE+1];
 	char connected[2], clientReq[18], reqNum[3], nmclReq[8];
-	int sockDes, recvLen, sendLen, reqRet, success, numIndex;
+	int sockDes, recvLen, sendLen, reqRet, success, numIndex, ar, isGet;
 	regex_t nmclReqPattern;
 	success = regcomp(&nmclReqPattern, "(GET_MAIL |DELETE_MAIL )[1,9][0,9]*", 0);
 
@@ -94,7 +95,7 @@ int main(int argc, char* argv[])
 			if(strcmp(clientReq,"SHOW_INBOX")==0) // Show request
 			{
 				sendLen = send(sockDes, "1", 2, 0);
-				recvLen = recv(sockDes, inbox, INBOX_SIZE, 0);
+				recvLen = recv(sockDes, inbox, INBOX_SIZE+1, 0);
 				printf("%s\n", inbox);
 			}
 			else if(strcmp(clientReq, "QUIT")==0) // Quit request
@@ -123,16 +124,33 @@ int main(int argc, char* argv[])
 				{
 					reqNum = {'2',' ','\0'};
 					numIndex = 9;
+					ar=1;
+					isGet=1;
 				}
-				if(clientReq[0]=='D') // Delete request
+				else if(clientReq[0]=='D') // Delete request
 				{
 					reqNum = {'3',' ','\0'};
 					numIndex = 13;
+					ar=1;
+					isGet=0;
 				}
-				memset(nmclReq, '\0', 8);
-				strcat(nmclReq, reqNum);
-				strcat(nmclReq, &clientReq[numIndex]); //TODO check if this work
-				sendLen = send(sockDes, nmclReq, 8, 0);
+				else
+				{
+					//TODO errors
+					ar=0;
+					isGet=0;
+				}
+				if(ar)
+				{
+					memset(nmclReq, '\0', 8);
+					strcat(nmclReq, reqNum);
+					strcat(nmclReq, &clientReq[numIndex]); //TODO check if this work
+					sendLen = send(sockDes, nmclReq, 8, 0);
+					if(isGet)
+					{
+						recvLen=recv(sockDes, inMail, MAIL_SIZE, 0);
+						printf("%s\n",inMail);
+					}
 			}
 			else
 			{
