@@ -4,18 +4,40 @@
 #include <arpa/inet.h>
 #include <errno.h>
 
-int main(int argc, char* argv)
+int main(int argc, char* argv[])
 {
-	if(argc==2)
+	const int TOTAL_TO = 20, MAXMAILS = 32000, MAX_USERNAME = 50, MAX_PASSWORD = 30, MAX_SUBJECT = 100, MAX_CONTENT = 2000, NUM_OF_CLIENTS = 20;
+	const short DEFAULT_PORT = 6423;
+
+	/* Initialize address struct: */
+	struct sockaddr_in serverAddr;
+	serverAddr.sin_family=AF_INET;
+	int success;
+	if(argc>1) // got ip addr
 	{
-		/*ip+port were given*/
+		success = inet_aton(argv[1], &serverAddr.sin_addr);
+		if(success==0) //Invalid address format
+		{
+			//TODO errors
+		}
+	}else{
+		inet_aton("127.0.0.1", &serverAddr.sin_addr)
 	}
-	if(argc==1)
+	if(argc>2) // got port number
 	{
-		/*ip was given, default port*/
+		success = sscanf(argv[2], "%hu", &serverAddr.sin_port);
+		if(success!=1) // Invalid port
+		{
+			//TODO errors
+		}
+		*serverAddr.sin_port = htons(*serverAddr.sin_port);
+	}else{
+		serverAddr.sin_port = DEFAULT_PORT;
 	}
-	if(argc==0)
+	int sock_des = socket(PF_INET, SOCK_STREAM, 0);
+	success = connect(sock_des, serverAddr, sizeof(serverAddr));
+	if(success==-1)// error
 	{
-		/*default ip and port*/
+		//TODO errors
 	}
 }
