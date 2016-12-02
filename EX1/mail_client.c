@@ -18,17 +18,18 @@
 
 int main(int argc, char* argv[])
 {
-	char welcomeMessage[WELCOME_LENGTH], username[MAX_USERNAME], password[MAX_PASSWORD];
-	int recLen;
+	char welcomeMessage[WELCOME_LENGTH], usernameAndPassword[MAX_USERNAME+MAX_PASSWORD+2], password[MAX_PASSWORD+1], connected[2], clientReq[18];
+	int sockDes, recvLen, sendLen, reqRet, success;
+	regex_t nmclReq;
+	success = regcomp(&nmclReq, "(GET_MAIL |DELETE_MAIL )[1,9][0,9]*", 0)
 
 	/* Initialize address struct: */
 	struct sockaddr_in serverAddr;
 	serverAddr.sin_family=AF_INET;
-	int success;
 	if(argc>1) // got ip addr
 	{
 		success = inet_aton(argv[1], &serverAddr.sin_addr);
-		if(success==0) //Invalid address format
+		if(success==0)
 		{
 			//TODO errors
 		}
@@ -54,8 +55,40 @@ int main(int argc, char* argv[])
 	{
 		//TODO errors
 	}
-	recLen = recv(sockDes, welcomeMessage, WELCOME_LENGTH);
+	recvLen = recv(sockDes, welcomeMessage, WELCOME_LENGTH, 0);
+
+	/* Authentication */
 	printf("%s\n", *welcomeMessage);
 	printf("User: ");
-	username = scanf("%s");
+	success = fgets(usernameAndPassword, MAX_USERNAME, stdin);
+	if(!success)
+	{
+		//TODO errors
+	}
+	printf("Password: ");
+	success = fgets(password, MAX_PASSWORD, stdin);
+	if(!success)
+	{
+		//TODO errors
+	}
+	strcat(usernameAndPassword,"\n");
+	strcat(usernameAndPassword,password);
+	sendLen = send(sockDes, usernameAndPassword, strlen(usernameAndPassword)+1, 0);
+	recvLen = recv(sockDes, connected, 2, 0);
+	if(connected[0] != 'Y')
+	{
+		printf("Could not connect to the server.\nUsername and password combination is incorrect\n");
+		return 0;
+	}else{
+		prinf("Connected to server\n");
+		do
+		{
+			success = fgets(clientReq, 18, stdin);
+			if(!success)
+			{
+				//TODO errors
+			}
+		}while(strcmp(clientReq, "QUIT"))
+	}
+	return 0
 }
