@@ -115,7 +115,6 @@ int main(int argc, char* argv[])
 	}else{
 		serverAddr.sin_port = DEFAULT_PORT;
 	}
-
 	/* Socket initialization */
 	sockDes = socket(PF_INET, SOCK_STREAM, 0);
 	success = connect(sockDes, (struct sockaddr *)&serverAddr, sizeof(serverAddr));
