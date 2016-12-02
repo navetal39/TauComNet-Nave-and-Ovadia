@@ -3,12 +3,21 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <errno.h>
+#include <string.h>
+#include <regex.h>
+
+#define TOTAL_TO 20
+#define MAXMAILS = 32000
+#define MAX_USERNAME 50
+#define MAX_PASSWORD 30
+#define MAX_SUBJECT 100
+#define MAX_CONTENT 2000
+#define NUM_OF_CLIENTS 20
+#define WELCOME_LENGTH 32
+#define DEFAULT_PORT 6423
 
 int main(int argc, char* argv[])
 {
-	const int TOTAL_TO = 20, MAXMAILS = 32000, MAX_USERNAME = 50, MAX_PASSWORD = 30, MAX_SUBJECT = 100, MAX_CONTENT = 2000, NUM_OF_CLIENTS = 20;
-	const int WELCOME_LENGTH = 33;
-	const short DEFAULT_PORT = 6423;
 	char welcomeMessage[WELCOME_LENGTH], username[MAX_USERNAME], password[MAX_PASSWORD];
 	int recLen;
 
@@ -29,7 +38,7 @@ int main(int argc, char* argv[])
 	if(argc>2) // got port number
 	{
 		success = sscanf(argv[2], "%hu", &serverAddr.sin_port);
-		if(success!=1) // Invalid port
+		if(success!=1)
 		{
 			//TODO errors
 		}
@@ -37,9 +46,11 @@ int main(int argc, char* argv[])
 	}else{
 		serverAddr.sin_port = DEFAULT_PORT;
 	}
-	int sockDes = socket(PF_INET, SOCK_STREAM, 0);
+
+	/* Socket initialization */
+	sockDes = socket(PF_INET, SOCK_STREAM, 0);
 	success = connect(sockDes, serverAddr, sizeof(serverAddr));
-	if(success==-1)// error
+	if(success==-1)
 	{
 		//TODO errors
 	}
