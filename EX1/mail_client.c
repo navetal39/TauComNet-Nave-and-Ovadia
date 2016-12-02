@@ -21,7 +21,7 @@
 #define INBOX_SIZE (9+MAX_USERNAME+MAX_SUBJECT)*MAXMAILS
 #define MAIL_SIZE 28+(MAX_USERNAME*(TOTAL_TO+1))+MAX_SUBJECT+MAX_CONTENT
 /*Macros and other general functions*/
-void handleError(){}
+void handleError(){/*TODO implement?*/}
 #define sendMgetOK(message) sendRet = sendall(sockDes, (message), strlen(message)+1); validate(sendRet); recvRet = recvall(sockDes, ok); validate(recvRet); //TODO handle? x2
 #define validate(var) if((var)==-1){handleError();}
 
