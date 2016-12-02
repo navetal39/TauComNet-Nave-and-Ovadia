@@ -88,6 +88,22 @@ int main(int argc, char* argv[])
 			{
 				//TODO errors
 			}
+			if(strcmp(clientReq,"SHOW_INBOX")==0)
+			{
+			}
+			else if(strcmp(clientReq,"COMPOSE")==0)
+			{
+
+			}
+			else if(!regexec(&nmclReq, clientReq, 0, NULL, 0))
+			{
+
+			}
+			else if(!strcmp(clientReq, "QUIT"))
+			{
+				//TODO errors
+			}
+		}while(strcmp(clientReq, "QUIT"));
 	}
 	return 0;
 }
