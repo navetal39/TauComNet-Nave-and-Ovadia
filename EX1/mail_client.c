@@ -21,7 +21,7 @@ int main(int argc, char* argv[])
 	char welcomeMessage[WELCOME_LENGTH], usernameAndPassword[MAX_USERNAME+MAX_PASSWORD+2], password[MAX_PASSWORD+1], connected[2], clientReq[18];
 	int sockDes, recvLen, sendLen, reqRet, success;
 	regex_t nmclReq;
-	success = regcomp(&nmclReq, "(GET_MAIL |DELETE_MAIL )[1,9][0,9]*", 0)
+	success = regcomp(&nmclReq, "(GET_MAIL |DELETE_MAIL )[1,9][0,9]*", 0);
 
 	/* Initialize address struct: */
 	struct sockaddr_in serverAddr;
@@ -34,7 +34,7 @@ int main(int argc, char* argv[])
 			//TODO errors
 		}
 	}else{
-		inet_aton("127.0.0.1", &serverAddr.sin_addr)
+		inet_aton("127.0.0.1", &serverAddr.sin_addr);
 	}
 	if(argc>2) // got port number
 	{
@@ -43,14 +43,14 @@ int main(int argc, char* argv[])
 		{
 			//TODO errors
 		}
-		*serverAddr.sin_port = htons(*serverAddr.sin_port);
+		serverAddr.sin_port = htons(serverAddr.sin_port);
 	}else{
 		serverAddr.sin_port = DEFAULT_PORT;
 	}
 
 	/* Socket initialization */
 	sockDes = socket(PF_INET, SOCK_STREAM, 0);
-	success = connect(sockDes, serverAddr, sizeof(serverAddr));
+	success = connect(sockDes, (struct sockaddr *)&serverAddr, sizeof(serverAddr));
 	if(success==-1)
 	{
 		//TODO errors
@@ -58,20 +58,20 @@ int main(int argc, char* argv[])
 	recvLen = recv(sockDes, welcomeMessage, WELCOME_LENGTH, 0);
 
 	/* Authentication */
-	printf("%s\n", *welcomeMessage);
+	printf("%s\n", welcomeMessage);
 	printf("User: ");
-	success = fgets(usernameAndPassword, MAX_USERNAME, stdin);
+	fgets(usernameAndPassword, MAX_USERNAME, stdin);
 	if(!success)
 	{
 		//TODO errors
 	}
 	printf("Password: ");
-	success = fgets(password, MAX_PASSWORD, stdin);
+	fgets(password, MAX_PASSWORD, stdin);
 	if(!success)
 	{
 		//TODO errors
 	}
-	strcat(usernameAndPassword,"\n");
+	strcat(usernameAndPassword,"\t");
 	strcat(usernameAndPassword,password);
 	sendLen = send(sockDes, usernameAndPassword, strlen(usernameAndPassword)+1, 0);
 	recvLen = recv(sockDes, connected, 2, 0);
@@ -80,15 +80,14 @@ int main(int argc, char* argv[])
 		printf("Could not connect to the server.\nUsername and password combination is incorrect\n");
 		return 0;
 	}else{
-		prinf("Connected to server\n");
+		printf("Connected to server\n");
 		do
 		{
-			success = fgets(clientReq, 18, stdin);
+			fgets(clientReq, 18, stdin);
 			if(!success)
 			{
 				//TODO errors
 			}
-		}while(strcmp(clientReq, "QUIT"))
 	}
-	return 0
+	return 0;
 }
