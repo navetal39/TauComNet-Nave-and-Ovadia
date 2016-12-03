@@ -21,7 +21,7 @@
 #define INBOX_SIZE (9+MAX_USERNAME+MAX_SUBJECT)*MAXMAILS
 #define MAIL_SIZE 28+(MAX_USERNAME*(TOTAL_TO+1))+MAX_SUBJECT+MAX_CONTENT
 /*Macros and other general functions*/
-void handleError(){printf("client: shit's on fire, yo!!!!!!\n");}
+void handleError(){printf("an error occured\n");}
 #define sendMgetOK(message) sendRet = sendall(sockDes, (message), strlen(message)+1); validate(sendRet); recvRet = recvall(sockDes, ok); validate(recvRet); //TODO handle? x2
 #define validate(var) if((var)==-1){handleError();}
 
@@ -67,8 +67,8 @@ int recvall(int sd, char* buf)
 	validate(m) else{
 		printf("client: got length: %s\n", strnum);
 		len = atoi(strnum);
-		m2=send(sd, strnum, m+12, 0)-(m+12);
-		printf("client: sent %d characters\n", m+12);
+		m2=send(sd, strnum, m+11, 0)-(m+11);
+		printf("client: sent %d characters\n", m+11);
 		validate(-(!(!m2))) else{
 			printf("client: getting data\n");
 			while(total<len)
@@ -111,7 +111,7 @@ int main(int argc, char* argv[])
 	char welcomeMessage[WELCOME_LENGTH], usernameAndPassword[MAX_USERNAME+MAX_PASSWORD+2], password[MAX_PASSWORD+1], inbox[INBOX_SIZE+1];
 	char recps[TOTAL_TO*(MAX_USERNAME+1)], subj[MAX_SUBJECT+1], ctnt[MAX_CONTENT+1], inMail[MAIL_SIZE+1];
 	char connected[2], clientReq[18], reqNum[3], nmclReq[8], ok[3];
-	int sockDes, recvRet, sendRet, success, numIndex, ar, isGet;
+	int sockDes, recvRet, sendRet, success, numIndex, ar, isGet, portNum;
 	regex_t nmclReqPattern;
 	success = regcomp(&nmclReqPattern, "(GET_MAIL |DELETE_MAIL )[1,9][0,9]*", 0);
 	validate(-(!(!success)));
@@ -121,22 +121,26 @@ int main(int argc, char* argv[])
 	serverAddr.sin_family=AF_INET;
 	if(argc>1) // got ip addr
 	{
-		success = inet_aton(argv[1], &serverAddr.sin_addr)-1;
-		validate(success);
+		success = inet_pton(AF_INET, argv[1], &serverAddr.sin_addr)-1;
+		validate(-(!(!(success-1))));
 	}else{
 		inet_aton("127.0.0.1", &serverAddr.sin_addr);
 	}
 	if(argc>2) // got port number
 	{
-		success = sscanf(argv[2], "%hu", &serverAddr.sin_port)-1;
-		validate(success);
-		serverAddr.sin_port = htons(serverAddr.sin_port);
+		portNum = htons(atoi(argv[2]));
 	}else{
-		serverAddr.sin_port = DEFAULT_PORT;
+		portNum = htons(DEFAULT_PORT);
 	}
+	serverAddr.sin_port = portNum;
 	/* Socket initialization */
 	printf("client: initializing socket\n");
 	sockDes = socket(PF_INET, SOCK_STREAM, 0);
+	validate(sockDes);
+
+	getsockname(sockDes, (struct sockaddr*)&serverAddr, sizeof(serverAddr));
+	printf("client: port number: %d, %d, %d\n", ntohs(serverAddr.sin_port), serverAddr.sin_port, portNum);
+
 	printf("client: made socket\n");
 	success = connect(sockDes, (struct sockaddr *)&serverAddr, sizeof(serverAddr));
 	printf("client: connected\n");
@@ -159,10 +163,10 @@ int main(int argc, char* argv[])
 	sendRet = sendall(sockDes, usernameAndPassword, strlen(usernameAndPassword)+1);
 	printf("client: sent username and password\n");
 	validate(sendRet); //TODO handle?
-	printf("validated sent username and password\n");
+	printf("client: validated sent username and password\n");
 	recvRet = recvall(sockDes, connected);
 	validate(recvRet); //TODO handle?
-	printf("validated recved data\n");
+	printf("client: validated recved data\n");
 	if(connected[0] != 'Y')
 	{
 		printf("Could not connect to the server.\nUsername and password combination is incorrect\n");
@@ -170,7 +174,7 @@ int main(int argc, char* argv[])
 		validate(success);
 		return 0;
 	}else{
-		printf("Connected to server\n");
+		printf("client: Connected to server\n");
 		do
 		{
 			readInto(clientReq, 18);

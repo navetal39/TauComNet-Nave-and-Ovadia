@@ -38,12 +38,12 @@ struct mail{
 
 int sendall(int sd, char* buf, int len);
 int recvall(int sd, char* buf);
-void handleError(){printf("client: shit's on fire, yo!!!!!!\n");}
+void handleError(){printf("SERVER: shit's on fire, yo!!!!!!\n");}
 
 
 int main(int argc, char *argv[]){
         char filepath[FILEPATH_LEN],command[8], username[MAX_USERNAME+1],userAndPassword[MAX_LOGIN],cur[1];
-        int srvPort = DEFAULT_PORT,clientSock,auth = 0,curEmails = 0,curTo,myEmailAmount = 0, found = 0, count = 0, count2 = 0, curUsers = 0;
+        int srvPort = htons(DEFAULT_PORT),clientSock,auth = 0,curEmails = 0,curTo,myEmailAmount = 0, found = 0, count = 0, count2 = 0, curUsers = 0;
         FILE *users_file;
         struct sockaddr_in srvAddr, clientAddr;
         static struct mail emails[MAXEMAILS], myEmails[MAXEMAILS];
@@ -60,15 +60,18 @@ int main(int argc, char *argv[]){
         strcpy(filepath,argv[1]);
         users_file = fopen(filepath, "r");
         if(argc == 3){
-                srvPort =atoi(argv[2]);
+                srvPort = htons(atoi(argv[2]));
         }
         /* Initialize server socket */
+        printf("SERVER: initializing server socket\n");
         int srvSock = socket(PF_INET,SOCK_STREAM,0);
         srvAddr.sin_family = AF_INET;
-        srvAddr.sin_port = htons(srvPort);
-        srvAddr.sin_addr.s_addr = INADDR_ANY;
+        srvAddr.sin_port = srvPort;
+        srvAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+        printf("SERVER: binding server socket\n");
         bind(srvSock,(struct sockaddr*)&srvAddr,sizeof(srvAddr));
 
+        printf("SERVER: reading users file\n");
         /* Generate user list */
         fread(cur,1,1,users_file);
         while (!feof(users_file) && count < NUM_OF_CLIENTS){
@@ -88,20 +91,28 @@ int main(int argc, char *argv[]){
                         ++count2;
                         fread(cur,1,1,users_file);
                 }
-
         }
         fseek(users_file,0,SEEK_SET);
 
+        printf("SERVER: ready for clients\n");
         /* Server operation loop */
+        getsockname(srvSock, (struct sockaddr*)&srvAddr, addrSize);
+        printf("SERVER: port number: %d, %d, %d\n", ntohs(srvAddr.sin_port), srvAddr.sin_port, srvPort);
+        listen(srvSock,2);
         while (1){
-                listen(srvSock,1);
-                clientSock = accept(srvSock,(struct sockaddr*) &clientAddr,(socklen_t *__restrict__) &addrSize);
+                printf("SERVER: listening\n"); //V NULL, NULL -> &clientAddr, (socklen_t *__restrict__) &addrSize
+                clientSock = accept(srvSock,(struct sockaddr*)NULL, NULL);
+                printf("SERVER: accepted client\n");
                 if(clientSock != -1){
+                        printf("SERVER: sending welcome\n");
                         sendall(clientSock,WELCOME, sizeof(WELCOME));
+                        printf("SERVER: getting authentication information\n");
                         recvall(clientSock,userAndPassword);
+                        printf("SERVER: authentication info obtained:\n-%s-%d-\n", userAndPassword, strlen(userAndPassword));
 
                         /* Check user file for authentication */
-                        while(fread(cur,1,1,users_file)!= EOF){
+                        fread(cur,1,1,users_file);
+                        while(!feof(users_file)){
                                 while(count<MAX_LOGIN+1 && strcmp(cur,"\n")){
                                         fileUserPass[count] = *cur;
                                         ++count;
@@ -112,9 +123,9 @@ int main(int argc, char *argv[]){
                                         sendall(clientSock,"Y",1);
                                         auth = 1;
                                 }
-
                         }
                         if(!auth){
+                                printf("SERVER: incorrect auth info\n");
                                 sendall(clientSock,"N",1);
                                 close(clientSock);
                                 continue;
@@ -231,10 +242,10 @@ int main(int argc, char *argv[]){
                                                 }
                                                 token = strtok(NULL,",");
                                         }
-                                        sendall(clientSock,"OK",2)
+                                        sendall(clientSock,"OK",2);
                                         recvall(clientSock,toSubj);
                                         strcpy(newMail.subject,toSubj);
-                                        sendall(clientSock,"OK",2)
+                                        sendall(clientSock,"OK",2);
                                         recvall(clientSock,toText);
                                         strcpy(newMail.content,toText);
                                         sendall(clientSock,"OK",2);
@@ -257,7 +268,7 @@ int main(int argc, char *argv[]){
 }
 int sendall(int sd, char* buf, int len)
 {
-        printf("client: trying to send %s\n", buf);
+        printf("SERVER: trying to send %s\n", buf);
         int total = 0;
         int n=-1, m=0, bytesleft=len;
 
@@ -266,14 +277,14 @@ int sendall(int sd, char* buf, int len)
         memset(retnum, 0, 11);
         sprintf(strnum, "%d", len);
         m=send(sd, strnum, 11, 0)-11;
-        printf("client: sent length of %s\n", strnum);
+        printf("SERVER: sent length of %s\n", strnum);
         validate(-(!(!m))) else{
                 m=recv(sd, retnum, 11, 0);
                 validate(m) else{
                         validate(-(!(!strcmp(retnum, strnum)))) else{
                                 while(total<len)
                                 {
-                                        printf("client: sending %s\n", buf+total);
+                                        printf("SERVER: sending %s\n", buf+total);
                                         n=send(sd,buf+total, bytesleft, 0);
                                         validate(n) else{
                                                 total += n;
@@ -285,24 +296,23 @@ int sendall(int sd, char* buf, int len)
         }
         return n==-1?-1:0;
 }
-/* not taken from recitation's 2's slides animore */
 int recvall(int sd, char* buf)
 {
         char strnum[11];
         memset(strnum, 0, 11);
         int m, m2, n=-1, len, total = 0;
         m = recv(sd, strnum, 11, 0)-11;
-        printf("client: got %d characters\n", m+11);
+        printf("SERVER: got %d characters\n", m+11);
         validate(m) else{
-                printf("client: got length: %s\n", strnum);
+                printf("SERVER: got length: %s\n", strnum);
                 len = atoi(strnum);
-                m2=send(sd, strnum, m+12, 0)-(m+12);
-                printf("client: sent %d characters\n", m+12);
+                m2=send(sd, strnum, m+11, 0)-(m+11);
+                printf("SERVER: sent %d characters\n", m+11);
                 validate(-(!(!m2))) else{
-                        printf("client: getting data\n");
+                        printf("SERVER: getting data\n");
                         while(total<len)
                         {
-                                printf("client: recieving... got %d out of %d\n", total, len);
+                                printf("SERVER: recieving... got %d out of %d\n", total, len);
                                 n=recv(sd, buf+total, len-total, 0);
                                 validate(n) else{
                                         total += n;
@@ -310,7 +320,6 @@ int recvall(int sd, char* buf)
                         }
                 }
         }
-        printf("client: recived %s\n", buf);
         return n==-1?-1:0;
 }
 
