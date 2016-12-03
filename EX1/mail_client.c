@@ -22,7 +22,7 @@
 #define MAIL_SIZE 28+(MAX_USERNAME*(TOTAL_TO+1))+MAX_SUBJECT+MAX_CONTENT
 /*Macros and other general functions*/
 void handleError(m){printf("an error occured during %s\n", m);}
-#define sendMgetOK(message) sendRet = sendall(sockDes, (message), strlen(message)+1); validate(sendRet); recvRet = recvall(sockDes, ok); validate(recvRet); //TODO handle? x2
+#define sendMgetOK(message) sendRet = sendall(sockDes, (message), strlen(message)+1); validate(sendRet, "getOK 1"); recvRet = recvall(sockDes, ok); validate(recvRet, "getOK 2"); //TODO handle? x2
 #define validate(var, m) if((var)==-1){handleError(m);}
 
 /* Slightly modified code from recitation 2's slides */
