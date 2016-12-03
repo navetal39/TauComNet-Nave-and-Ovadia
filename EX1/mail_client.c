@@ -108,7 +108,7 @@ void readInto(char buff[], int size)
 int main(int argc, char* argv[])
 {
 	printf("client: starting\n");
-	char welcomeMessage[WELCOME_LENGTH], usernameAndPassword[MAX_USERNAME+MAX_PASSWORD+2], password[MAX_PASSWORD+1], inbox[INBOX_SIZE+1];
+	char welcomeMessage[WELCOME_LENGTH], username[MAX_USERNAME+1], password[MAX_PASSWORD+1], inbox[INBOX_SIZE+1];
 	char recps[TOTAL_TO*(MAX_USERNAME+1)], subj[MAX_SUBJECT+1], ctnt[MAX_CONTENT+1], inMail[MAIL_SIZE+1];
 	char connected[2], clientReq[18], reqNum[3], nmclReq[8], ok[3];
 	int sockDes, recvRet, sendRet, success, numIndex, ar, isGet, portNum;
@@ -153,14 +153,13 @@ int main(int argc, char* argv[])
 	/* Authentication */
 	printf("client: user\n");
 	readField("User: ");
-	readInto(usernameAndPassword, MAX_USERNAME);
+	readInto(username, MAX_USERNAME);
 	printf("client: password\n");
 	readField("Password: ");
 	readInto(password, MAX_PASSWORD);
-	strcat(usernameAndPassword,"\t");
-	strcat(usernameAndPassword,password);
 	printf("client: sending username and password\n");
-	sendRet = sendall(sockDes, usernameAndPassword, strlen(usernameAndPassword)+1);
+	sendMgetOK(username);
+	sendRet = sendall(sockDes, password, strlen(password)); //TODO handle?
 	printf("client: sent username and password\n");
 	validate(sendRet); //TODO handle?
 	printf("client: validated sent username and password\n");
