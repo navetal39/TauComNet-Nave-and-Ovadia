@@ -20,6 +20,7 @@
 #define MAX_LOGIN MAX_USERNAME+MAX_PASSWORD+2
 #define INBOX_SIZE (9+MAX_USERNAME+MAX_SUBJECT)*MAXEMAILS+1
 #define MAIL_SIZE 29+(MAX_USERNAME*(TOTAL_TO+1))+MAX_SUBJECT+MAX_CONTENT
+#define validate(var) if((var)==-1){handleError();}
 
 struct user{
         char name[MAX_USERNAME+1];
@@ -34,6 +35,10 @@ struct mail{
         char content[MAX_CONTENT+1];
         int tempID;
 };
+
+int sendall(int sd, char* buf, int len);
+int recvall(int sd, char* buf);
+void handleError(){printf("client: shit's on fire, yo!!!!!!\n");}
 
 
 int main(int argc, char *argv[]){
@@ -92,10 +97,8 @@ int main(int argc, char *argv[]){
                 listen(srvSock,1);
                 clientSock = accept(srvSock,(struct sockaddr*) &clientAddr,(socklen_t *__restrict__) &addrSize);
                 if(clientSock != -1){
-                        send(clientSock,WELCOME, sizeof(WELCOME),0);
-                        recv(clientSock,&userAndPassword,MAX_LOGIN,0);
-
-
+                        sendall(clientSock,WELCOME, sizeof(WELCOME));
+                        recvall(clientSock,userAndPassword);
 
                         /* Check user file for authentication */
                         while(fread(cur,1,1,users_file)!= EOF){
@@ -106,13 +109,13 @@ int main(int argc, char *argv[]){
                                 }
                                 fileUserPass[count +1] = '\0';
                                 if(strcmp(userAndPassword,fileUserPass) == 0){
-                                        send(clientSock,"Y",1,0);
+                                        sendall(clientSock,"Y",1);
                                         auth = 1;
                                 }
 
                         }
                         if(!auth){
-                                send(clientSock,"N",1,0);
+                                sendall(clientSock,"N",1);
                                 close(clientSock);
                                 continue;
                         }
@@ -139,7 +142,7 @@ int main(int argc, char *argv[]){
                         }
 
                         /* Receive commands from client and execute */
-                        recv(clientSock,&command,8,0);
+                        recvall(clientSock,command);
                         while(!strcmp(&command[0],"4")){
 
 
@@ -157,7 +160,7 @@ int main(int argc, char *argv[]){
                                                         strcat(inbox, "\n");
                                                 }
                                         }
-                                        send(clientSock,inbox,INBOX_SIZE,0);
+                                        sendall(clientSock,inbox,INBOX_SIZE);
 
                                 }
 
@@ -183,7 +186,7 @@ int main(int argc, char *argv[]){
                                                         strcat(reqMail,myEmails[count].content);
                                                         strcat(reqMail,"\n");
                                                 }
-                                                send(clientSock,reqMail,MAIL_SIZE,0);
+                                                sendall(clientSock,reqMail,MAIL_SIZE);
                                                 found = 1;
                                         }
                                 }
@@ -206,14 +209,15 @@ int main(int argc, char *argv[]){
 
                                 /* Case "Compose" */
                                 else if(!strcmp(&command[0],"5")){
-                                        send(clientSock,"OK",2,0); //Ready to receive compose data
+                                        sendall(clientSock,"OK",2); //Ready to receive compose data
                                         struct mail newMail;
                                         strcpy(newMail.from,username);
-                                        char toName[MAX_USERNAME+1][TOTAL_TO], toSubj[MAX_SUBJECT+1], toText[MAX_CONTENT+1];
-                                        recv(clientSock,&toName,(MAX_USERNAME+1)*TOTAL_TO,0);
+                                        char toName[(MAX_USERNAME+1)*TOTAL_TO], toSubj[MAX_SUBJECT+1], toText[MAX_CONTENT+1];
+                                        recvall(clientSock,toName);
                                         char *token;
                                         count = 0;
-                                        while((token = strtok(NULL,",")) != NULL){
+                                        strtok(toName,",");
+                                        while((token != NULL)){
                                                 for(count2 = 0; count2 < curUsers; ++count2){
                                                         if(!strcmp(token,userList[count2].name)){
                                                                 newMail.to[count].id = (++userList[count2].id);
@@ -222,12 +226,13 @@ int main(int argc, char *argv[]){
                                                                 break;
                                                         }
                                                 }
+                                                token = strtok(NULL,",");
                                         }
-                                        recv(clientSock,&toSubj,MAX_SUBJECT+1,0);
+                                        recvall(clientSock,toSubj);
                                         strcpy(newMail.subject,toSubj);
-                                        recv(clientSock,&toText,MAX_CONTENT+1,0);
+                                        recvall(clientSock,toText);
                                         strcpy(newMail.content,toText);
-                                        send(clientSock,"OK",2,0);
+                                        sendall(clientSock,"OK",2);
                                         emails[++curEmails] = newMail;
 
                                 }
@@ -241,3 +246,62 @@ int main(int argc, char *argv[]){
 
 
 }
+int sendall(int sd, char* buf, int len)
+{
+        printf("client: trying to send %s\n", buf);
+        int total = 0;
+        int n=-1, m=0, bytesleft=len;
+
+        char strnum[11], retnum[11]; // 10 characters (+null terminator) is enough to hold int32's max value. It SHOULD be safe enough...
+        memset(strnum, 0, 11);
+        memset(retnum, 0, 11);
+        sprintf(strnum, "%d", len);
+        m=send(sd, strnum, 11, 0)-11;
+        printf("client: sent length of %s\n", strnum);
+        validate(-(!(!m))) else{
+                m=recv(sd, retnum, 11, 0);
+                validate(m) else{
+                        validate(-(!(!strcmp(retnum, strnum)))) else{
+                                while(total<len)
+                                {
+                                        printf("client: sending %s\n", buf+total);
+                                        n=send(sd,buf+total, bytesleft, 0);
+                                        validate(n) else{
+                                                total += n;
+                                                bytesleft -= n;
+                                        }
+                                }
+                        }
+                }
+        }
+        return n==-1?-1:0;
+}
+/* not taken from recitation's 2's slides animore */
+int recvall(int sd, char* buf)
+{
+        char strnum[11];
+        memset(strnum, 0, 11);
+        int m, m2, n=-1, len, total = 0;
+        m = recv(sd, strnum, 11, 0)-11;
+        printf("client: got %d characters\n", m+11);
+        validate(m) else{
+                printf("client: got length: %s\n", strnum);
+                len = atoi(strnum);
+                m2=send(sd, strnum, m+12, 0)-(m+12);
+                printf("client: sent %d characters\n", m+12);
+                validate(-(!(!m2))) else{
+                        printf("client: getting data\n");
+                        while(total<len)
+                        {
+                                printf("client: recieving... got %d out of %d\n", total, len);
+                                n=recv(sd, buf+total, len-total, 0);
+                                validate(n) else{
+                                        total += n;
+                                }
+                        }
+                }
+        }
+        printf("client: recived %s\n", buf);
+        return n==-1?-1:0;
+}
+
