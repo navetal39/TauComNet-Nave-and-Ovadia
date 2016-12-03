@@ -159,7 +159,7 @@ int main(int argc, char* argv[])
 	readInto(password, MAX_PASSWORD);
 	printf("client: sending username and password\n");
 	sendMgetOK(username);
-	sendRet = sendall(sockDes, password, strlen(password)); //TODO handle?
+	sendRet = sendall(sockDes, password, strlen(password)+1); //TODO handle?
 	printf("client: sent username and password\n");
 	validate(sendRet); //TODO handle?
 	printf("client: validated sent username and password\n");
