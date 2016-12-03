@@ -37,17 +37,12 @@ struct mail{
 
 
 int main(int argc, char *argv[]){
-        printf("FIRST\n");
-        fflush(stdout);
         char filepath[FILEPATH_LEN],command[8], username[MAX_USERNAME+1],userAndPassword[MAX_LOGIN],cur[1];
         int srvPort = DEFAULT_PORT,clientSock,auth = 0,curEmails = 0,curTo,myEmailAmount = 0, found = 0, count = 0, count2 = 0, curUsers = 0;
         FILE *users_file;
-        printf("after FILE\n");
-        fflush(stdout);
         struct sockaddr_in srvAddr, clientAddr;
         static struct mail emails[MAXEMAILS], myEmails[MAXEMAILS];
         struct user userList[NUM_OF_CLIENTS];
-        printf("After structs\n");
         char fileUserPass[MAX_LOGIN];
         size_t addrSize = sizeof(clientAddr);
 
@@ -58,28 +53,20 @@ int main(int argc, char *argv[]){
                 return 1;
         }
         strcpy(filepath,argv[1]);
-        printf("HELLO\n");
-        fflush(stdout);
         users_file = fopen(filepath, "r");
-        printf("file opened\n");
-        fflush(stdout);
         if(argc == 3){
                 srvPort =atoi(argv[2]);
         }
         /* Initialize server socket */
         int srvSock = socket(PF_INET,SOCK_STREAM,0);
-        printf("socket created\n");
-        fflush(stdout);
         srvAddr.sin_family = AF_INET;
         srvAddr.sin_port = htons(srvPort);
         srvAddr.sin_addr.s_addr = INADDR_ANY;
         bind(srvSock,(struct sockaddr*)&srvAddr,sizeof(srvAddr));
-        printf("socket bound\n");
-        fflush(stdout);
 
         /* Generate user list */
         fread(cur,1,1,users_file);
-        while (*cur != EOF && count < NUM_OF_CLIENTS){
+        while (!feof(users_file) && count < NUM_OF_CLIENTS){
                 if(!strcmp(cur,"\t")){
                         while(strcmp(cur,"\n")){
                                 fread(cur,1,1,users_file);
@@ -88,16 +75,16 @@ int main(int argc, char *argv[]){
                         strcpy(userList[curUsers].name,username);
                         userList[curUsers].id = 0;
                         ++curUsers;
+                        ++count;
                         count2 = 0;
                 }
                 else{
-                        username[count2] = *cur;
+                        strncpy(&username[count2],cur,1);
                         ++count2;
+                        fread(cur,1,1,users_file);
                 }
 
         }
-        printf("User list generated\n");
-        fflush(stdout);
         fseek(users_file,0,SEEK_SET);
 
         /* Server operation loop */
