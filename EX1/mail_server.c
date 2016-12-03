@@ -201,10 +201,13 @@ int main(int argc, char *argv[]){
                                                                 if(!strcmp(myEmails[count].to[curTo].name,username)){
                                                                         myEmails[count].to[curTo].id = 0;
                                                                         found = 1;
+                                                                        
                                                                 }
                                                         }
                                                 }
                                         }
+                                        sendall(clientSock,"OK",2);
+                                        
                                 }
 
                                 /* Case "Compose" */
@@ -216,7 +219,7 @@ int main(int argc, char *argv[]){
                                         recvall(clientSock,toName);
                                         char *token;
                                         count = 0;
-                                        strtok(toName,",");
+                                        token = strtok(toName,",");
                                         while((token != NULL)){
                                                 for(count2 = 0; count2 < curUsers; ++count2){
                                                         if(!strcmp(token,userList[count2].name)){
@@ -228,14 +231,20 @@ int main(int argc, char *argv[]){
                                                 }
                                                 token = strtok(NULL,",");
                                         }
+                                        sendall(clientSock,"OK",2)
                                         recvall(clientSock,toSubj);
                                         strcpy(newMail.subject,toSubj);
+                                        sendall(clientSock,"OK",2)
                                         recvall(clientSock,toText);
                                         strcpy(newMail.content,toText);
                                         sendall(clientSock,"OK",2);
-                                        emails[++curEmails] = newMail;
+                                        if(count){
+                                                emails[++curEmails] = newMail;        
+                                        }
+                                        
 
                                 }
+                                recvall(clientSock,command);
 
                         }
 
