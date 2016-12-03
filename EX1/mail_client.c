@@ -201,9 +201,9 @@ int main(int argc, char* argv[])
 				readInto(ctnt, MAX_CONTENT+1);
 				memset(ok, '\0', 3);
 				sendMgetOK("5");
-				sendMgetOK("recps");
-				sendMgetOK("subj");
-				sendMgetOK("ctnt");
+				sendMgetOK(recps);
+				sendMgetOK(subj);
+				sendMgetOK(ctnt);
 			}
 			else if(!regexec(&nmclReqPattern, clientReq, 0, NULL, 0))
 			{
