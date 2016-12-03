@@ -234,10 +234,10 @@ int main(int argc, char* argv[])
 					strcat(nmclReq, &clientReq[numIndex]); //TODO check if this work
 					sendRet = sendall(sockDes, nmclReq, 8);
 					validate(sendRet); //TODO handle?
+					recvRet = recvall(sockDes, inMail);
+					validate(recvRet); //TODO handle?
 					if(isGet)
 					{
-						recvRet = recvall(sockDes, inMail);
-						validate(recvRet); //TODO handle?
 						printf("%s\n",inMail);
 					}
 				}
