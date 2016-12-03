@@ -17,7 +17,7 @@
 #define NUM_OF_CLIENTS 20
 #define TOTAL_TO 20
 #define WELCOME "Connection established. Welcome!"
-#define MAX_LOGIN MAX_USERNAME+MAX_PASSWORD+2
+#define MAX_LOGIN MAX_USERNAME+MAX_PASSWORD+3
 #define INBOX_SIZE (9+MAX_USERNAME+MAX_SUBJECT)*MAXEMAILS+1
 #define MAIL_SIZE 29+(MAX_USERNAME*(TOTAL_TO+1))+MAX_SUBJECT+MAX_CONTENT
 #define validate(var) if((var)==-1){handleError();}
@@ -42,13 +42,12 @@ void handleError(){printf("SERVER: shit's on fire, yo!!!!!!\n");}
 
 
 int main(int argc, char *argv[]){
-        char filepath[FILEPATH_LEN],command[8], username[MAX_USERNAME+1],userAndPassword[MAX_LOGIN],cur[1];
+        char filepath[FILEPATH_LEN],command[8], username[MAX_USERNAME+1],username2[MAX_USERNAME+1],password[MAX_PASSWORD+1],password2[MAX_PASSWORD+1],cur[2];
         int srvPort = htons(DEFAULT_PORT),clientSock,auth = 0,curEmails = 0,curTo,myEmailAmount = 0, found = 0, count = 0, count2 = 0, curUsers = 0;
         FILE *users_file;
         struct sockaddr_in srvAddr, clientAddr;
         static struct mail emails[MAXEMAILS], myEmails[MAXEMAILS];
         struct user userList[NUM_OF_CLIENTS];
-        char fileUserPass[MAX_LOGIN];
         size_t addrSize = sizeof(clientAddr);
 
 
@@ -98,8 +97,13 @@ int main(int argc, char *argv[]){
         /* Server operation loop */
         getsockname(srvSock, (struct sockaddr*)&srvAddr, addrSize);
         printf("SERVER: port number: %d, %d, %d\n", ntohs(srvAddr.sin_port), srvAddr.sin_port, srvPort);
-        listen(srvSock,2);
+        listen(srvSock,1);
         while (1){
+        		memset(username,0,MAX_USERNAME+1);
+        		memset(password,0,MAX_PASSWORD+1);
+        		memset(username2,0,MAX_USERNAME+1);
+        		memset(password2,0,MAX_PASSWORD+1);
+        		memset(cur,0,2);
                 printf("SERVER: listening\n"); //V NULL, NULL -> &clientAddr, (socklen_t *__restrict__) &addrSize
                 clientSock = accept(srvSock,(struct sockaddr*)NULL, NULL);
                 printf("SERVER: accepted client\n");
@@ -107,21 +111,17 @@ int main(int argc, char *argv[]){
                         printf("SERVER: sending welcome\n");
                         sendall(clientSock,WELCOME, sizeof(WELCOME));
                         printf("SERVER: getting authentication information\n");
-                        recvall(clientSock,userAndPassword);
-                        printf("SERVER: authentication info obtained:\n-%s-%d-\n", userAndPassword, strlen(userAndPassword));
+                        recvall(clientSock,username2);
+                        sendall(clientSock,"OK",3);
+                        recvall(clientSock,password2);
+                        printf("SERVER: authentication info obtained:\n-%s-%s-\n", username2,password2);
 
                         /* Check user file for authentication */
-                        fread(cur,1,1,users_file);
-                        while(!feof(users_file)){
-                                while(count<MAX_LOGIN+1 && strcmp(cur,"\n")){
-                                        fileUserPass[count] = *cur;
-                                        ++count;
-                                        fread(cur,1,1,users_file);
-                                }
-                                fileUserPass[count +1] = '\0';
-                                if(strcmp(userAndPassword,fileUserPass) == 0){
+                        while(fscanf(users_file,"%s\t%s\n",username, password)!= EOF){
+                                   if(!strcmp(username,username2) && !strcmp(password,password2)){
                                         sendall(clientSock,"Y",1);
                                         auth = 1;
+                                        break;
                                 }
                         }
                         if(!auth){
@@ -130,15 +130,6 @@ int main(int argc, char *argv[]){
                                 close(clientSock);
                                 continue;
                         }
-
-                        count = 0;
-                        strcpy(cur,&userAndPassword[0]);
-                        while(strcmp(cur,"\t")){
-                                username[count] = *cur;
-                                ++count;
-                                *cur = userAndPassword[count];
-                        }
-                        username[count] = '\0';
 
                         /* Load current user Emails for easy access */
                         for(count = 0;count<curEmails;++count){
@@ -154,11 +145,11 @@ int main(int argc, char *argv[]){
 
                         /* Receive commands from client and execute */
                         recvall(clientSock,command);
-                        while(!strcmp(&command[0],"4")){
+                        while(command[0] != '4'){
 
 
                                 /* Case "Show Inbox" */
-                                if(!strcmp(&command[0], "1")){
+                                if(command[0] == '1'){
                                         char inbox[INBOX_SIZE];
                                         memset(inbox,0,INBOX_SIZE);
                                         for(count = 0;count<myEmailAmount;++count){
@@ -176,7 +167,7 @@ int main(int argc, char *argv[]){
                                 }
 
                                 /* Case "Get Mail" */
-                                else if(!strcmp(&command[0],"2")){
+                                else if(command[0] == '2'){
                                         found = 0;
                                         char reqMail[MAIL_SIZE];
                                         memset(reqMail,0,MAIL_SIZE);
@@ -204,7 +195,7 @@ int main(int argc, char *argv[]){
 
 
                                 /* Case  "Delete Mail" */
-                                else if(!strcmp(&command[0],"3")){
+                                else if(command[0] == '3'){
                                         found = 0;
                                         for(count = 0; (count < myEmailAmount) && !found; ++count){
                                                 if(myEmails[count].tempID == atoi((command+2))){
@@ -222,7 +213,7 @@ int main(int argc, char *argv[]){
                                 }
 
                                 /* Case "Compose" */
-                                else if(!strcmp(&command[0],"5")){
+                                else if(command[0] == '5'){
                                         sendall(clientSock,"OK",2); //Ready to receive compose data
                                         struct mail newMail;
                                         strcpy(newMail.from,username);
@@ -258,7 +249,7 @@ int main(int argc, char *argv[]){
                                 recvall(clientSock,command);
 
                         }
-
+                        printf("HI\n");
                         close(clientSock);
 
                 }
