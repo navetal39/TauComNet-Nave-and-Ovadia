@@ -207,6 +207,7 @@ int main(int argc, char* argv[])
 				sendMgetOK(recps);
 				sendMgetOK(subj);
 				sendMgetOK(ctnt);
+				printf("Mail sent\n");
 			}
 			else if(!regexec(&nmclReqPattern, clientReq, 0, NULL, 0))
 			{
