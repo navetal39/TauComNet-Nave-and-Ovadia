@@ -159,14 +159,16 @@ int main(int argc, char *argv[]){
                                 if(command[0] == '1'){
                                         char inbox[INBOX_SIZE];
                                         memset(inbox,0,INBOX_SIZE);
+                                        printf("%d\n", myEmailAmount );
                                         for(count = 0; count<myEmailAmount; ++count){
                                                 if(myEmails[count].tempID != 0){
-                                                        strcat(inbox,(char *)&myEmails[count].to[curTo].id);
+                                                        strcat(inbox,(char *)myEmails[count].to[curTo].id);
                                                         strcat(inbox," ");
                                                         strcat(inbox, myEmails[count].from);
                                                         strcat(inbox, " ");
                                                         strcat(inbox, myEmails[count].subject);
                                                         strcat(inbox, "\n");
+                                                        strcat(inbox,"\0");
                                                         
                                                 }
                                         }
@@ -236,6 +238,7 @@ int main(int argc, char *argv[]){
                                                 for(count2 = 0; count2 < curUsers; ++count2){
                                                         if(!strcmp(token,userList[count2].name)){
                                                                 newMail.to[count].id = (++(userList[count2].id));
+                                                                ++newMail.numTo;
                                                                 strcpy(newMail.to[count].name,token);
                                                                 
                                                                 ++count;
@@ -260,7 +263,8 @@ int main(int argc, char *argv[]){
                                                 printf("FANCY\n");
                                                 if(found){
                                                 	myEmails[myEmailAmount] = newMail;
-                                                	++myEmailAmount;
+                                                	newMail.tempID = ++myEmailAmount;
+
                                                 }       
                                         }
                                         
