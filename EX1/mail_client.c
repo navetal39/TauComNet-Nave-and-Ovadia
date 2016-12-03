@@ -21,9 +21,9 @@
 #define INBOX_SIZE (9+MAX_USERNAME+MAX_SUBJECT)*MAXMAILS
 #define MAIL_SIZE 28+(MAX_USERNAME*(TOTAL_TO+1))+MAX_SUBJECT+MAX_CONTENT
 /*Macros and other general functions*/
-void handleError(){printf("an error occured\n");}
+void handleError(m){printf("an error occured during %s\n", m);}
 #define sendMgetOK(message) sendRet = sendall(sockDes, (message), strlen(message)+1); validate(sendRet); recvRet = recvall(sockDes, ok); validate(recvRet); //TODO handle? x2
-#define validate(var) if((var)==-1){handleError();}
+#define validate(var, m) if((var)==-1){handleError(m);}
 
 /* Slightly modified code from recitation 2's slides */
 int sendall(int sd, char* buf, int len)
@@ -38,15 +38,15 @@ int sendall(int sd, char* buf, int len)
 	sprintf(strnum, "%d", len);
 	m=send(sd, strnum, 11, 0)-11;
 	printf("client: sent length of %s\n", strnum);
-	validate(-(!(!m))) else{
+	validate(-(!(!m)), "sendall 1") else{
 		m=recv(sd, retnum, 11, 0);
-		validate(m) else{
+		validate(m, "sendall 2") else{
 			validate(-(!(!strcmp(retnum, strnum)))) else{
 				while(total<len)
 				{
 					printf("client: sending %s\n", buf+total);
 					n=send(sd,buf+total, bytesleft, 0);
-					validate(n) else{
+					validate(n, "sendall 3") else{
 						total += n;
 						bytesleft -= n;
 					}
@@ -64,18 +64,18 @@ int recvall(int sd, char* buf)
 	int m, m2, n=-1, len, total = 0;
 	m = recv(sd, strnum, 11, 0)-11;
 	printf("client: got %d characters\n", m+11);
-	validate(m) else{
+	validate(m, "recvall 1") else{
 		printf("client: got length: %s\n", strnum);
 		len = atoi(strnum);
 		m2=send(sd, strnum, m+11, 0)-(m+11);
 		printf("client: sent %d characters\n", m+11);
-		validate(-(!(!m2))) else{
+		validate(-(!(!m2)), "recvall 2") else{
 			printf("client: getting data\n");
 			while(total<len)
 			{
 				printf("client: recieving... got %d out of %d\n", total, len);
 				n=recv(sd, buf+total, len-total, 0);
-				validate(n) else{
+				validate(n, "recvall 3") else{
 					total += n;
 				}
 			}
@@ -99,7 +99,7 @@ int readField(const char field[])
 void readInto(char buff[], int size)
 {
 	char* r = fgets(buff, size, stdin);
-	validate(-(!r))else{
+	validate(-(!r), "readInto")else{
 		int len = strlen(buff);
 		if (*buff && buff[len-1] == '\n') 
 		    buff[len-1] = '\0';
@@ -114,7 +114,7 @@ int main(int argc, char* argv[])
 	int sockDes, recvRet, sendRet, success, numIndex, ar, isGet, portNum;
 	regex_t nmclReqPattern;
 	success = regcomp(&nmclReqPattern, "(GET_MAIL |DELETE_MAIL )[1,9][0,9]*", 0);
-	validate(-(!(!success)));
+	validate(-(!(!success)), "main 1");
 	/* Initialize address struct: */
 	printf("client: initializing address struct\n");
 	struct sockaddr_in serverAddr;
@@ -122,7 +122,7 @@ int main(int argc, char* argv[])
 	if(argc>1) // got ip addr
 	{
 		success = inet_pton(AF_INET, argv[1], &serverAddr.sin_addr)-1;
-		validate(-(!(!(success-1))));
+		validate(-(!(!(success-1))), "main 2");
 	}else{
 		inet_aton("127.0.0.1", &serverAddr.sin_addr);
 	}
@@ -136,7 +136,7 @@ int main(int argc, char* argv[])
 	/* Socket initialization */
 	printf("client: initializing socket\n");
 	sockDes = socket(PF_INET, SOCK_STREAM, 0);
-	validate(sockDes);
+	validate(sockDes, "main 3");
 
 	getsockname(sockDes, (struct sockaddr*)&serverAddr, sizeof(serverAddr));
 	printf("client: port number: %d, %d, %d\n", ntohs(serverAddr.sin_port), serverAddr.sin_port, portNum);
@@ -144,11 +144,11 @@ int main(int argc, char* argv[])
 	printf("client: made socket\n");
 	success = connect(sockDes, (struct sockaddr *)&serverAddr, sizeof(serverAddr));
 	printf("client: connected\n");
-	validate(success);
+	validate(success, "main 4");
 	printf("client: validated connection\n");
 	recvRet = recvall(sockDes, welcomeMessage);
 	printf("client: recved welcome message\n");
-	validate(recvRet); //TODO handle?
+	validate(recvRet, "main 5"); //TODO handle?
 	printf("%s\n", welcomeMessage);
 	/* Authentication */
 	printf("client: user\n");
@@ -161,16 +161,16 @@ int main(int argc, char* argv[])
 	sendMgetOK(username);
 	sendRet = sendall(sockDes, password, strlen(password)+1); //TODO handle?
 	printf("client: sent username and password\n");
-	validate(sendRet); //TODO handle?
+	validate(sendRet, "main 6"); //TODO handle?
 	printf("client: validated sent username and password\n");
 	recvRet = recvall(sockDes, connected);
-	validate(recvRet); //TODO handle?
+	validate(recvRet, "main 7"); //TODO handle?
 	printf("client: validated recved data\n");
 	if(connected[0] != 'Y')
 	{
 		printf("Could not connect to the server.\nUsername and password combination is incorrect\n");
 		success = close(sockDes);
-		validate(success);
+		validate(success, "main 8");
 		return 0;
 	}else{
 		printf("client: Connected to server\n");
@@ -180,27 +180,27 @@ int main(int argc, char* argv[])
 			if(strcmp(clientReq,"SHOW_INBOX")==0) // Show request
 			{
 				sendRet = sendall(sockDes, "1", 2);
-				validate(sendRet); //TODO handle?
+				validate(sendRet, "main 9"); //TODO handle?
 				recvRet = recvall(sockDes, inbox);
-				validate(recvRet); //TODO handle?
+				validate(recvRet), "main 10"; //TODO handle?
 				printf("%s\n", inbox);
 			}
 			else if(strcmp(clientReq, "QUIT")==0) // Quit request
 			{
 				printf("client: quitting...\n");
 				sendRet = sendall(sockDes, "4", 2);
-				validate(sendRet); //TODO handle?
+				validate(sendRet, "main 11"); //TODO handle?
 			}
 			else if(strcmp(clientReq,"COMPOSE")==0) // Compose request
 			{
 				success = readField("To: ");
-				validate(success);
+				validate(success, "main 12");
 				readInto(recps, TOTAL_TO*(MAX_USERNAME+1));
 				success = readField("Subject: ");
-				validate(success);
+				validate(success, "main 13");
 				readInto(subj, MAX_SUBJECT+1);
 				success = readField("Text: ");
-				validate(success);
+				validate(success, "main 14");
 				readInto(ctnt, MAX_CONTENT+1);
 				memset(ok, '\0', 3);
 				sendMgetOK("5");
@@ -236,9 +236,9 @@ int main(int argc, char* argv[])
 					strcat(nmclReq, reqNum);
 					strcat(nmclReq, &clientReq[numIndex]); //TODO check if this work
 					sendRet = sendall(sockDes, nmclReq, 8);
-					validate(sendRet); //TODO handle?
+					validate(sendRet, "main 15"); //TODO handle?
 					recvRet = recvall(sockDes, inMail);
-					validate(recvRet); //TODO handle?
+					validate(recvRet, "main 16"); //TODO handle?
 					if(isGet)
 					{
 						printf("%s\n",inMail);
@@ -253,7 +253,7 @@ int main(int argc, char* argv[])
 		printf("client: closing socket\n");
 		success = close(sockDes);
 		printf("client: socket closed\n");
-		validate(success);
+		validate(success, "main 17");
 	}
 	return 0;
 }
