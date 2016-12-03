@@ -72,6 +72,7 @@ int main(int argc, char *argv[]){
 
         printf("SERVER: reading users file\n");
         /* Generate user list */
+        /*
         fread(cur,1,1,users_file);
         while (!feof(users_file) && count < NUM_OF_CLIENTS){
                 if(!strcmp(cur,"\t")){
@@ -90,6 +91,12 @@ int main(int argc, char *argv[]){
                         ++count2;
                         fread(cur,1,1,users_file);
                 }
+        }*/
+        while(fscanf(users_file,"%s\t%s\n",username,password)!= EOF){
+        	strcpy(userList[curUsers].name,username);
+        	printf("%s\n",username );
+        	userList[curUsers].id = 0;
+        	++curUsers;
         }
         fseek(users_file,0,SEEK_SET);
 
@@ -130,7 +137,7 @@ int main(int argc, char *argv[]){
                                 close(clientSock);
                                 continue;
                         }
-
+                    
                         /* Load current user Emails for easy access */
                         for(count = 0;count<curEmails;++count){
                                 for(curTo = 0; curTo<emails[count].numTo;++curTo){
@@ -152,7 +159,7 @@ int main(int argc, char *argv[]){
                                 if(command[0] == '1'){
                                         char inbox[INBOX_SIZE];
                                         memset(inbox,0,INBOX_SIZE);
-                                        for(count = 0;count<myEmailAmount;++count){
+                                        for(count = 0; count<myEmailAmount; ++count){
                                                 if(myEmails[count].tempID != 0){
                                                         strcat(inbox,(char *)&myEmails[count].to[curTo].id);
                                                         strcat(inbox," ");
@@ -160,9 +167,11 @@ int main(int argc, char *argv[]){
                                                         strcat(inbox, " ");
                                                         strcat(inbox, myEmails[count].subject);
                                                         strcat(inbox, "\n");
+                                                        
                                                 }
                                         }
-                                        sendall(clientSock,inbox,INBOX_SIZE);
+                                        printf("%s\n",inbox );
+                                        sendall(clientSock,inbox,strlen(inbox));
 
                                 }
 
@@ -221,13 +230,19 @@ int main(int argc, char *argv[]){
                                         recvall(clientSock,toName);
                                         char *token;
                                         count = 0;
+                                        found = 0;
                                         token = strtok(toName,",");
                                         while((token != NULL)){
                                                 for(count2 = 0; count2 < curUsers; ++count2){
                                                         if(!strcmp(token,userList[count2].name)){
-                                                                newMail.to[count].id = (++userList[count2].id);
+                                                                newMail.to[count].id = (++(userList[count2].id));
                                                                 strcpy(newMail.to[count].name,token);
+                                                                
                                                                 ++count;
+                                                                printf("%s, %d\n",token,count );
+                                                                if(!strcmp(token,username)){
+                                                                	found = 1;
+                                                                }
                                                                 break;
                                                         }
                                                 }
@@ -241,7 +256,12 @@ int main(int argc, char *argv[]){
                                         strcpy(newMail.content,toText);
                                         sendall(clientSock,"OK",2);
                                         if(count){
-                                                emails[++curEmails] = newMail;        
+                                                emails[++curEmails] = newMail; 
+                                                printf("FANCY\n");
+                                                if(found){
+                                                	myEmails[myEmailAmount] = newMail;
+                                                	++myEmailAmount;
+                                                }       
                                         }
                                         
 
