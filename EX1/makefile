@@ -1,11 +1,11 @@
 all:
-	make server; make client
+	make mail_server; make mail_client
 
 
-server:
-	gcc -Wall -g -o server server.c
-client:
-	gcc -Wall -g -o client client.c
+mail_server:
+	gcc -Wall -g -o mail_server mail_server.c
+mail_client:
+	gcc -Wall -g -o mail_client mail_client.c
 
 clean:
-	rm -rf server client
+	rm -rf mail_server mail_client
