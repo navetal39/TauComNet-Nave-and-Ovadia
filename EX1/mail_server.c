@@ -111,6 +111,8 @@ int main(int argc, char *argv[]){
         		memset(username2,0,MAX_USERNAME+1);
         		memset(password2,0,MAX_PASSWORD+1);
         		memset(cur,0,2);
+                memset(myEmails,0,MAXEMAILS*sizeof(struct mail));
+                myEmailAmount = 0;
                 printf("SERVER: listening\n"); //V NULL, NULL -> &clientAddr, (socklen_t *__restrict__) &addrSize
                 clientSock = accept(srvSock,(struct sockaddr*)NULL, NULL);
                 printf("SERVER: accepted client\n");
@@ -131,6 +133,7 @@ int main(int argc, char *argv[]){
                                         break;
                                 }
                         }
+                        fseek(users_file,0,SEEK_SET);
                         if(!auth){
                                 printf("SERVER: incorrect auth info\n");
                                 sendall(clientSock,"N",1);
@@ -157,16 +160,22 @@ int main(int argc, char *argv[]){
 
                                 /* Case "Show Inbox" */
                                 if(command[0] == '1'){
-                                        char inbox[INBOX_SIZE];
+                                        char forID[10];
+                                        char inbox[INBOX_SIZE+1];
                                         memset(inbox,0,INBOX_SIZE);
                                         printf("%d\n", myEmailAmount );
                                         for(count = 0; count<myEmailAmount; ++count){
-                                                if(myEmails[count].tempID != 0){
-                                                        strcat(inbox,(char *)myEmails[count].to[curTo].id);
+                                                if(myEmails[count].tempID != -1){
+                                                	    printf("FOUNDAMAIL\n");
+                                                        sprintf(forID,"%d",myEmails[count].tempID);
+                                                        strcat(inbox,forID);
+                                                        printf("ADDED ID: %d\n",myEmails[count].tempID);
                                                         strcat(inbox," ");
                                                         strcat(inbox, myEmails[count].from);
+                                                        printf("ADDED FROM\n");
                                                         strcat(inbox, " ");
                                                         strcat(inbox, myEmails[count].subject);
+                                                        printf("ADDED SUBJECT\n");
                                                         strcat(inbox, "\n");
                                                         strcat(inbox,"\0");
                                                         
@@ -212,7 +221,8 @@ int main(int argc, char *argv[]){
                                                 if(myEmails[count].tempID == atoi((command+2))){
                                                         for(curTo = 0; (curTo < myEmails[count].numTo) && !found; ++curTo){
                                                                 if(!strcmp(myEmails[count].to[curTo].name,username)){
-                                                                        myEmails[count].to[curTo].id = 0;
+                                                                        myEmails[count].to[curTo].id = -1;
+                                                                        myEmails[count].tempID = -1;
                                                                         found = 1;
                                                                         
                                                                 }
@@ -253,17 +263,21 @@ int main(int argc, char *argv[]){
                                         }
                                         sendall(clientSock,"OK",2);
                                         recvall(clientSock,toSubj);
+                                        printf("%s\n",toSubj );
                                         strcpy(newMail.subject,toSubj);
                                         sendall(clientSock,"OK",2);
                                         recvall(clientSock,toText);
                                         strcpy(newMail.content,toText);
+                                        printf("%s\n",toText );
                                         sendall(clientSock,"OK",2);
                                         if(count){
                                                 emails[++curEmails] = newMail; 
                                                 printf("FANCY\n");
                                                 if(found){
                                                 	myEmails[myEmailAmount] = newMail;
-                                                	newMail.tempID = ++myEmailAmount;
+                                                	myEmails[myEmailAmount].tempID = ++myEmailAmount;
+                                                    printf("MYEMAILAMOUNT %d\n",myEmailAmount );
+                                                
 
                                                 }       
                                         }
