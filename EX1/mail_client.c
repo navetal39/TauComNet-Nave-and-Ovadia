@@ -41,7 +41,7 @@ int sendall(int sd, char* buf, int len)
 	validate(-(!(!m)), "sendall 1") else{
 		m=recv(sd, retnum, 11, 0);
 		validate(m, "sendall 2") else{
-			validate(-(!(!strcmp(retnum, strnum)))) else{
+			validate(-(!(!strcmp(retnum, strnum))),"SOME MESSAGE NAVE FORGOT TO ADD") else{
 				while(total<len)
 				{
 					printf("client: sending %s\n", buf+total);
@@ -182,7 +182,7 @@ int main(int argc, char* argv[])
 				sendRet = sendall(sockDes, "1", 2);
 				validate(sendRet, "main 9"); //TODO handle?
 				recvRet = recvall(sockDes, inbox);
-				validate(recvRet), "main 10"; //TODO handle?
+				validate(recvRet, "main 10"); //TODO handle?
 				printf("%s\n", inbox);
 			}
 			else if(strcmp(clientReq, "QUIT")==0) // Quit request
