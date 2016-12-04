@@ -22,333 +22,315 @@
 #define MAIL_SIZE 29+(MAX_USERNAME*(TOTAL_TO+1))+MAX_SUBJECT+MAX_CONTENT
 #define validate(var) if((var)==-1){handleError();}
 
-struct user{
-        char name[MAX_USERNAME+1];
-        int id;
+struct user {
+    char name[MAX_USERNAME + 1];
+    int id;
 };
 
-struct mail{
-        char from[MAX_USERNAME+1];
-        struct user to[TOTAL_TO];
-        int numTo;
-        char subject[MAX_SUBJECT+1];
-        char content[MAX_CONTENT+1];
-        int tempID;
+struct mail {
+    char from[MAX_USERNAME + 1];
+    struct user to[TOTAL_TO];
+    int numTo;
+    char subject[MAX_SUBJECT + 1];
+    char content[MAX_CONTENT + 1];
+    int tempID;
 };
 
-int sendall(int sd, char* buf, int len);
-int recvall(int sd, char* buf);
-void handleError(){printf("SERVER: shit's on fire, yo!!!!!!\n");}
+void handleError() { printf("An error occured\n"); }
 
-
-int main(int argc, char *argv[]){
-        char filepath[FILEPATH_LEN],command[8], username[MAX_USERNAME+1],username2[MAX_USERNAME+1],password[MAX_PASSWORD+1],password2[MAX_PASSWORD+1],cur[2];
-        int srvPort = htons(DEFAULT_PORT),clientSock,auth = 0,curEmails = 0,curTo,myEmailAmount = 0, found = 0, count = 0, count2 = 0, curUsers = 0;
-        FILE *users_file;
-        struct sockaddr_in srvAddr, clientAddr;
-        static struct mail emails[MAXEMAILS], myEmails[MAXEMAILS];
-        struct user userList[NUM_OF_CLIENTS];
-        size_t addrSize = sizeof(clientAddr);
-
-
-        /* Checking input to see if non-default port was received */
-        if(argc>3||argc<2){
-                printf("Illegal Usage: Should be mail_server <users_file> [port]\n");
-                return 1;
-        }
-        strcpy(filepath,argv[1]);
-        users_file = fopen(filepath, "r");
-        if(argc == 3){
-                srvPort = htons(atoi(argv[2]));
-        }
-        /* Initialize server socket */
-        printf("SERVER: initializing server socket\n");
-        int srvSock = socket(PF_INET,SOCK_STREAM,0);
-        srvAddr.sin_family = AF_INET;
-        srvAddr.sin_port = srvPort;
-        srvAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-        printf("SERVER: binding server socket\n");
-        bind(srvSock,(struct sockaddr*)&srvAddr,sizeof(srvAddr));
-
-        printf("SERVER: reading users file\n");
-        /* Generate user list */
-        /*
-        fread(cur,1,1,users_file);
-        while (!feof(users_file) && count < NUM_OF_CLIENTS){
-                if(!strcmp(cur,"\t")){
-                        while(strcmp(cur,"\n")){
-                                fread(cur,1,1,users_file);
-                        }
-                        username[count2] = 0;
-                        strcpy(userList[curUsers].name,username);
-                        userList[curUsers].id = 0;
-                        ++curUsers;
-                        ++count;
-                        count2 = 0;
-                }
-                else{
-                        strncpy(&username[count2],cur,1);
-                        ++count2;
-                        fread(cur,1,1,users_file);
-                }
-        }*/
-        while(fscanf(users_file,"%s\t%s\n",username,password)!= EOF){
-        	strcpy(userList[curUsers].name,username);
-        	printf("%s\n",username );
-        	userList[curUsers].id = 0;
-        	++curUsers;
-        }
-        fseek(users_file,0,SEEK_SET);
-
-        printf("SERVER: ready for clients\n");
-        /* Server operation loop */
-        getsockname(srvSock, (struct sockaddr*)&srvAddr, addrSize);
-        printf("SERVER: port number: %d, %d, %d\n", ntohs(srvAddr.sin_port), srvAddr.sin_port, srvPort);
-        listen(srvSock,1);
-        while (1){
-        		memset(username,0,MAX_USERNAME+1);
-        		memset(password,0,MAX_PASSWORD+1);
-        		memset(username2,0,MAX_USERNAME+1);
-        		memset(password2,0,MAX_PASSWORD+1);
-        		memset(cur,0,2);
-                memset(myEmails,0,MAXEMAILS*sizeof(struct mail));
-                myEmailAmount = 0;
-                printf("SERVER: listening\n"); //V NULL, NULL -> &clientAddr, (socklen_t *__restrict__) &addrSize
-                clientSock = accept(srvSock,(struct sockaddr*)NULL, NULL);
-                printf("SERVER: accepted client\n");
-                if(clientSock != -1){
-                        printf("SERVER: sending welcome\n");
-                        sendall(clientSock,WELCOME, sizeof(WELCOME));
-                        printf("SERVER: getting authentication information\n");
-                        recvall(clientSock,username2);
-                        sendall(clientSock,"OK",3);
-                        recvall(clientSock,password2);
-                        printf("SERVER: authentication info obtained:\n-%s-%s-\n", username2,password2);
-
-                        /* Check user file for authentication */
-                        while(fscanf(users_file,"%s\t%s\n",username, password)!= EOF){
-                                   if(!strcmp(username,username2) && !strcmp(password,password2)){
-                                        sendall(clientSock,"Y",1);
-                                        auth = 1;
-                                        break;
-                                }
-                        }
-                        fseek(users_file,0,SEEK_SET);
-                        if(!auth){
-                                printf("SERVER: incorrect auth info\n");
-                                sendall(clientSock,"N",1);
-                                close(clientSock);
-                                continue;
-                        }
-                    
-                        /* Load current user Emails for easy access */
-                        for(count = 0;count<curEmails;++count){
-                                for(curTo = 0; curTo<emails[count].numTo;++curTo){
-                                        if(!strcmp(emails[count].to[curTo].name, username) && emails[count].to[curTo].id != 0){
-                                                myEmails[myEmailAmount] = emails[count];
-                                                myEmails[myEmailAmount].tempID = emails[count].to[curTo].id;
-                                                ++myEmailAmount;
-                                                break;
-                                        }
-                                }
-                        }
-
-                        /* Receive commands from client and execute */
-                        recvall(clientSock,command);
-                        while(command[0] != '4'){
-
-
-                                /* Case "Show Inbox" */
-                                if(command[0] == '1'){
-                                        char forID[10];
-                                        char inbox[INBOX_SIZE+1];
-                                        memset(inbox,0,INBOX_SIZE);
-                                        printf("%d\n", myEmailAmount );
-                                        for(count = 0; count<myEmailAmount; ++count){
-                                                if(myEmails[count].tempID != -1){
-                                                	    printf("FOUNDAMAIL\n");
-                                                        sprintf(forID,"%d",myEmails[count].tempID);
-                                                        strcat(inbox,forID);
-                                                        printf("ADDED ID: %d\n",myEmails[count].tempID);
-                                                        strcat(inbox," ");
-                                                        strcat(inbox, myEmails[count].from);
-                                                        printf("ADDED FROM\n");
-                                                        strcat(inbox, " ");
-                                                        strcat(inbox, myEmails[count].subject);
-                                                        printf("ADDED SUBJECT\n");
-                                                        strcat(inbox, "\n");
-                                                        strcat(inbox,"\0");
-                                                        
-                                                }
-                                        }
-                                        printf("%s\n",inbox );
-                                        sendall(clientSock,inbox,strlen(inbox));
-
-                                }
-
-                                /* Case "Get Mail" */
-                                else if(command[0] == '2'){
-                                        found = 0;
-                                        char reqMail[MAIL_SIZE];
-                                        memset(reqMail,0,MAIL_SIZE);
-                                        for(count = 0; (count < myEmailAmount) && !found; ++count){
-                                                if(myEmails[count].tempID == atoi((command+2))){
-                                                        strcat(reqMail,"From: ");
-                                                        strcat(reqMail,myEmails[count].from);
-                                                        strcat(reqMail,"\n");
-                                                        strcat(reqMail,"To: ");
-                                                        for(curTo = 0; curTo<myEmails[count].numTo;++curTo){
-                                                                if(curTo>0){
-                                                                        strcat(reqMail,",");
-                                                                }
-                                                                strcat(reqMail,myEmails[count].to[curTo].name);
-                                                        }
-                                                        strcat(reqMail,"\n");
-                                                        strcat(reqMail,"Text: ");
-                                                        strcat(reqMail,myEmails[count].content);
-                                                        strcat(reqMail,"\n");
-                                                }
-                                                sendall(clientSock,reqMail,MAIL_SIZE);
-                                                found = 1;
-                                        }
-                                }
-
-
-                                /* Case  "Delete Mail" */
-                                else if(command[0] == '3'){
-                                        found = 0;
-                                        for(count = 0; (count < myEmailAmount) && !found; ++count){
-                                                if(myEmails[count].tempID == atoi((command+2))){
-                                                        for(curTo = 0; (curTo < myEmails[count].numTo) && !found; ++curTo){
-                                                                if(!strcmp(myEmails[count].to[curTo].name,username)){
-                                                                        myEmails[count].to[curTo].id = -1;
-                                                                        myEmails[count].tempID = -1;
-                                                                        found = 1;
-                                                                        
-                                                                }
-                                                        }
-                                                }
-                                        }
-                                        sendall(clientSock,"OK",2);
-                                        
-                                }
-
-                                /* Case "Compose" */
-                                else if(command[0] == '5'){
-                                        sendall(clientSock,"OK",2); //Ready to receive compose data
-                                        struct mail newMail;
-                                        strcpy(newMail.from,username);
-                                        char toName[(MAX_USERNAME+1)*TOTAL_TO], toSubj[MAX_SUBJECT+1], toText[MAX_CONTENT+1];
-                                        recvall(clientSock,toName);
-                                        char *token;
-                                        count = 0;
-                                        found = 0;
-                                        token = strtok(toName,",");
-                                        while((token != NULL)){
-                                                for(count2 = 0; count2 < curUsers; ++count2){
-                                                        if(!strcmp(token,userList[count2].name)){
-                                                                newMail.to[count].id = (++(userList[count2].id));
-                                                                ++newMail.numTo;
-                                                                strcpy(newMail.to[count].name,token);
-                                                                
-                                                                ++count;
-                                                                printf("%s, %d\n",token,count );
-                                                                if(!strcmp(token,username)){
-                                                                	found = 1;
-                                                                }
-                                                                break;
-                                                        }
-                                                }
-                                                token = strtok(NULL,",");
-                                        }
-                                        sendall(clientSock,"OK",2);
-                                        recvall(clientSock,toSubj);
-                                        printf("%s\n",toSubj );
-                                        strcpy(newMail.subject,toSubj);
-                                        sendall(clientSock,"OK",2);
-                                        recvall(clientSock,toText);
-                                        strcpy(newMail.content,toText);
-                                        printf("%s\n",toText );
-                                        sendall(clientSock,"OK",2);
-                                        if(count){
-                                                emails[++curEmails] = newMail; 
-                                                printf("FANCY\n");
-                                                if(found){
-                                                	myEmails[myEmailAmount] = newMail;
-                                                	myEmails[myEmailAmount].tempID = ++myEmailAmount;
-                                                    printf("MYEMAILAMOUNT %d\n",myEmailAmount );
-                                                
-
-                                                }       
-                                        }
-                                        
-
-                                }
-                                recvall(clientSock,command);
-
-                        }
-                        printf("HI\n");
-                        close(clientSock);
-
-                }
-        }
-
-
-}
+/* Slightly modified code from recitation 2's slides */
 int sendall(int sd, char* buf, int len)
 {
-        printf("SERVER: trying to send %s\n", buf);
-        int total = 0;
-        int n=-1, m=0, bytesleft=len;
+    int total = 0;
+    int n = -1, m = 0, bytesleft = len;
 
-        char strnum[11], retnum[11]; // 10 characters (+null terminator) is enough to hold int32's max value. It SHOULD be safe enough...
-        memset(strnum, 0, 11);
-        memset(retnum, 0, 11);
-        sprintf(strnum, "%d", len);
-        m=send(sd, strnum, 11, 0)-11;
-        printf("SERVER: sent length of %s\n", strnum);
-        validate(-(!(!m))) else{
-                m=recv(sd, retnum, 11, 0);
-                validate(m) else{
-                        validate(-(!(!strcmp(retnum, strnum)))) else{
-                                while(total<len)
-                                {
-                                        printf("SERVER: sending %s\n", buf+total);
-                                        n=send(sd,buf+total, bytesleft, 0);
-                                        validate(n) else{
-                                                total += n;
-                                                bytesleft -= n;
-                                        }
-                                }
-                        }
+    char strnum[11], retnum[11]; // 10 characters (+null terminator) is enough to hold int32's max value. It SHOULD be safe enough...
+    memset(strnum, 0, 11);
+    memset(retnum, 0, 11);
+    sprintf(strnum, "%d", len);
+    m = send(sd, strnum, 11, 0) - 11;
+    validate(-(!(!m))) else {
+        m = recv(sd, retnum, 11, 0);
+        validate(m) else {
+            validate(-(!(!strcmp(retnum, strnum)))) else {
+                while (total < len)
+                {
+                    n = send(sd, buf + total, bytesleft, 0);
+                    validate(n) else {
+                        total += n;
+                        bytesleft -= n;
+                    }
                 }
+            }
         }
-        return n==-1?-1:0;
+    }
+    return n == -1 ? -1 : 0;
 }
+
 int recvall(int sd, char* buf)
 {
-        char strnum[11];
-        memset(strnum, 0, 11);
-        int m, m2, n=-1, len, total = 0;
-        m = recv(sd, strnum, 11, 0)-11;
-        printf("SERVER: got %d characters\n", m+11);
-        validate(m) else{
-                printf("SERVER: got length: %s\n", strnum);
-                len = atoi(strnum);
-                m2=send(sd, strnum, m+11, 0)-(m+11);
-                printf("SERVER: sent %d characters\n", m+11);
-                validate(-(!(!m2))) else{
-                        printf("SERVER: getting data\n");
-                        while(total<len)
-                        {
-                                printf("SERVER: recieving... got %d out of %d\n", total, len);
-                                n=recv(sd, buf+total, len-total, 0);
-                                validate(n) else{
-                                        total += n;
-                                }
-                        }
+    char strnum[11];
+    memset(strnum, 0, 11);
+    int m, m2, n = -1, len, total = 0;
+    m = recv(sd, strnum, 11, 0) - 11;
+    validate(m) else {
+        len = atoi(strnum);
+        m2 = send(sd, strnum, m + 11, 0) - (m + 11);
+        validate(-(!(!m2))) else {
+            while (total < len)
+            {
+                n = recv(sd, buf + total, len - total, 0);
+                validate(n) else {
+                    total += n;
                 }
+            }
         }
-        return n==-1?-1:0;
+    }
+    return n == -1 ? -1 : 0;
 }
 
+int main(int argc, char *argv[])
+{
+    char filepath[FILEPATH_LEN], command[8], username[MAX_USERNAME + 1], username2[MAX_USERNAME + 1], password[MAX_PASSWORD + 1], password2[MAX_PASSWORD + 1], cur[2];
+    int srvPort = htons(DEFAULT_PORT), clientSock, auth = 0, curEmails = 0, curTo, myEmailAmount = 0, found = 0, count = 0, count2 = 0, curUsers = 0, mailID;
+    FILE *users_file;
+    struct sockaddr_in srvAddr;
+    static struct mail emails[MAXEMAILS], myEmails[MAXEMAILS];
+    struct user userList[NUM_OF_CLIENTS];
+
+    /* Checking input to see if non-default port was received */
+    if (argc > 3 || argc < 2)
+    {
+        printf("Illegal Usage: Should be mail_server <users_file> [port]\n");
+        return 1;
+    }
+    strcpy(filepath, argv[1]);
+    users_file = fopen(filepath, "r");
+    if (argc == 3)
+    {
+        srvPort = htons(atoi(argv[2]));
+    }
+
+    /* Initialize server socket */
+    int srvSock = socket(PF_INET, SOCK_STREAM, 0);
+    srvAddr.sin_family = AF_INET;
+    srvAddr.sin_port = srvPort;
+    srvAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    bind(srvSock, (struct sockaddr*)&srvAddr, sizeof(srvAddr));
+
+
+    /* Generate user list */
+    while (fscanf(users_file, "%s\t%s\n", username, password) != EOF)
+    {
+        strcpy(userList[curUsers].name, username);
+        userList[curUsers].id = 0;
+        ++curUsers;
+    }
+    fseek(users_file, 0, SEEK_SET);
+
+
+    /* Server operation loop */
+    listen(srvSock, 1);
+    while (1)
+    {
+        memset(username, 0, MAX_USERNAME + 1);
+        memset(password, 0, MAX_PASSWORD + 1);
+        memset(username2, 0, MAX_USERNAME + 1);
+        memset(password2, 0, MAX_PASSWORD + 1);
+        memset(cur, 0, 2);
+        memset(myEmails, 0, MAXEMAILS * sizeof(struct mail));
+        myEmailAmount = 0;
+        clientSock = accept(srvSock, (struct sockaddr*)NULL, NULL);
+        if (clientSock != -1)
+        {
+            sendall(clientSock, WELCOME, sizeof(WELCOME));
+            recvall(clientSock, username2);
+            sendall(clientSock, "OK", 3);
+            recvall(clientSock, password2);
+
+            /* Check user file for authentication */
+            while (fscanf(users_file, "%s\t%s\n", username, password) != EOF)
+            {
+                if (!strcmp(username, username2) && !strcmp(password, password2))
+                {
+                    sendall(clientSock, "Y", 1);
+                    auth = 1;
+                    break;
+                }
+            }
+            fseek(users_file, 0, SEEK_SET);
+            if (!auth)
+            {
+                sendall(clientSock, "N", 1);
+                close(clientSock);
+                continue;
+            }
+
+            /* Load current user Emails for easy access */
+            for (count = 0; count < curEmails; ++count)
+            {
+                for (curTo = 0; curTo < emails[count].numTo; ++curTo) {
+                    if (!strcmp(emails[count].to[curTo].name, username) && emails[count].to[curTo].id != 0)
+                    {
+                        myEmails[myEmailAmount] = emails[count];
+                        myEmails[myEmailAmount].tempID = emails[count].to[curTo].id;
+                        ++myEmailAmount;
+                        break;
+                    }
+                }
+            }
+
+            /* Receive commands from client and execute */
+            recvall(clientSock, command);
+            while (command[0] != '4')
+            {
+                mailID = 0;
+                /* Case "Show Inbox" */
+                if (command[0] == '1')
+                {
+                    char forID[10];
+                    char inbox[INBOX_SIZE + 1];
+                    memset(inbox, 0, INBOX_SIZE);
+                    for (count = 0; count < myEmailAmount; ++count)
+                    {
+                        if (myEmails[count].tempID != -1)
+                        {
+                            sprintf(forID, "%d", myEmails[count].tempID);
+                            strcat(inbox, forID);
+                            strcat(inbox, " ");
+                            strcat(inbox, myEmails[count].from);
+                            strcat(inbox, " \"");
+                            strcat(inbox, myEmails[count].subject);
+                            strcat(inbox, "\"\n");
+                        }
+                    }
+                    strcat(inbox, "\0");
+                    inbox[strlen(inbox) - 1] = '\0';
+                    if (strlen(inbox) == 0)
+                    {
+                        sendall(clientSock, "EMPTY", 6);
+                    } else {
+                        sendall(clientSock, inbox, strlen(inbox));
+                    }
+                }
+
+                /* Case "Get Mail" */
+                else if (command[0] == '2')
+                {
+                    found = 0;
+                    char reqMail[MAIL_SIZE];
+                    memset(reqMail, 0, MAIL_SIZE);
+                    for (count = 0; (count < myEmailAmount) && !found; ++count)
+                    {
+                        sscanf(command, "2 %d", &mailID);
+                        if (myEmails[count].tempID == mailID)
+                        {
+                            strcat(reqMail, "From: ");
+                            strcat(reqMail, myEmails[count].from);
+                            strcat(reqMail, "\n");
+                            strcat(reqMail, "To: ");
+                            for (curTo = 0; curTo < myEmails[count].numTo; ++curTo)
+                            {
+                                if (curTo > 0)
+                                {
+                                    strcat(reqMail, ",");
+                                }
+                                strcat(reqMail, myEmails[count].to[curTo].name);
+                            }
+                            strcat(reqMail, "\n");
+                            strcat(reqMail, "Subject: ");
+                            strcat(reqMail, myEmails[count].subject);
+                            strcat(reqMail, "\n");
+                            strcat(reqMail, "Text: ");
+                            strcat(reqMail, myEmails[count].content);
+                            sendall(clientSock, reqMail, MAIL_SIZE);
+                            found = 1;
+                        }
+                    }
+                    if (!found)
+                    {
+                        sendall(clientSock, "ERROR: Mail not found.", MAIL_SIZE);
+                    }
+                }
+
+                /* Case  "Delete Mail" */
+                else if (command[0] == '3')
+                {
+                    sscanf(command, "3 %d", &mailID);
+                    found = 0;
+                    for (count = 0; (count < myEmailAmount) && !found; ++count)
+                    {
+                        if (myEmails[count].tempID == mailID)
+                        {
+                            myEmails[count].tempID = -1;
+                            for (curTo = 0; (curTo < myEmails[count].numTo) && !found; ++curTo)
+                            {
+                                if (!strcmp(myEmails[count].to[curTo].name, username))
+                                {
+                                    myEmails[count].to[curTo].id = -1;
+                                    found = 1;
+                                }
+                            }
+                        }
+                    }
+
+                    sendall(clientSock, "OK", 2);
+                }
+
+                /* Case "Compose" */
+                else if (command[0] == '5')
+                {
+                    sendall(clientSock, "OK", 2); //Ready to receive compose data
+                    struct mail newMail;
+                    memset(&newMail, 0, sizeof(struct mail));
+                    strcpy(newMail.from, username);
+                    char toName[(MAX_USERNAME + 1)*TOTAL_TO], toSubj[MAX_SUBJECT + 1], toText[MAX_CONTENT + 1];
+                    recvall(clientSock, toName);
+                    char *token;
+                    count = 0;
+                    found = 0;
+                    token = strtok(toName, ",");
+                    while (token != NULL)
+                    {
+                        for (count2 = 0; count2 < curUsers; ++count2)
+                        {
+                            if (!strcmp(token, userList[count2].name))
+                            {
+                                count = 1;
+                                strcpy(newMail.to[newMail.numTo].name, token);
+                                ++(userList[count2].id);
+                                newMail.to[newMail.numTo].id = userList[count2].id;
+                                ++(newMail.numTo);
+                                if (!strcmp(token, username))
+                                {
+                                    found = 1;
+                                }
+                            }
+                        }
+                        token = strtok(NULL, ",");
+                    }
+                    sendall(clientSock, "OK", 2);
+                    recvall(clientSock, toSubj);
+                    strcpy(newMail.subject, toSubj);
+                    sendall(clientSock, "OK", 2);
+                    recvall(clientSock, toText);
+                    strcpy(newMail.content, toText);
+                    sendall(clientSock, "OK", 2);
+                    if (count)
+                    {
+                        emails[curEmails] = newMail;
+                        ++curEmails;
+                        if (found)
+                        {
+                            myEmails[myEmailAmount] = newMail;
+                            myEmails[myEmailAmount].tempID = (myEmailAmount + 1);
+                            ++myEmailAmount;
+                        }
+                    }
+                }
+                recvall(clientSock, command);
+            }
+            close(clientSock);
+        }
+    }
+}
