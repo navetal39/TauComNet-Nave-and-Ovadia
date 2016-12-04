@@ -5,9 +5,9 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <string.h>
-#include <regex.h>
 #include <unistd.h>
 #include <stdlib.h>
+
 /*Constants*/
 #define TOTAL_TO 20
 #define MAXMAILS 32000
@@ -20,33 +20,31 @@
 #define DEFAULT_PORT 6423
 #define INBOX_SIZE (9+MAX_USERNAME+MAX_SUBJECT)*MAXMAILS
 #define MAIL_SIZE 28+(MAX_USERNAME*(TOTAL_TO+1))+MAX_SUBJECT+MAX_CONTENT
+
 /*Macros and other general functions*/
-void handleError(m){printf("an error occured during %s\n", m);}
+void handleError(char *m) { printf("an error occured during %s\n", m);}
 #define sendMgetOK(message) sendRet = sendall(sockDes, (message), strlen(message)+1); validate(sendRet, "getOK 1"); recvRet = recvall(sockDes, ok); validate(recvRet, "getOK 2"); //TODO handle? x2
 #define validate(var, m) if((var)==-1){handleError(m);}
 
 /* Slightly modified code from recitation 2's slides */
 int sendall(int sd, char* buf, int len)
 {
-	printf("client: trying to send %s\n", buf);
 	int total = 0;
-	int n=-1, m=0, bytesleft=len;
+	int n = -1, m = 0, bytesleft = len;
 
 	char strnum[11], retnum[11]; // 10 characters (+null terminator) is enough to hold int32's max value. It SHOULD be safe enough...
 	memset(strnum, 0, 11);
 	memset(retnum, 0, 11);
 	sprintf(strnum, "%d", len);
-	m=send(sd, strnum, 11, 0)-11;
-	printf("client: sent length of %s\n", strnum);
-	validate(-(!(!m)), "sendall 1") else{
-		m=recv(sd, retnum, 11, 0);
-		validate(m, "sendall 2") else{
-			validate(-(!(!strcmp(retnum, strnum))),"SOME MESSAGE NAVE FORGOT TO ADD") else{
-				while(total<len)
+	m = send(sd, strnum, 11, 0) - 11;
+	validate(-(!(!m)), "data sending") else {
+		m = recv(sd, retnum, 11, 0);
+		validate(m, "data sending") else {
+			validate(-(!(!strcmp(retnum, strnum))), "data sending") else {
+				while (total < len)
 				{
-					printf("client: sending %s\n", buf+total);
-					n=send(sd,buf+total, bytesleft, 0);
-					validate(n, "sendall 3") else{
+					n = send(sd, buf + total, bytesleft, 0);
+					validate(n, "data sending") else {
 						total += n;
 						bytesleft -= n;
 					}
@@ -54,154 +52,144 @@ int sendall(int sd, char* buf, int len)
 			}
 		}
 	}
-	return n==-1?-1:0;
+	return n == -1 ? -1 : 0;
 }
-/* not taken from recitation's 2's slides animore */
+
 int recvall(int sd, char* buf)
 {
 	char strnum[11];
 	memset(strnum, 0, 11);
-	int m, m2, n=-1, len, total = 0;
-	m = recv(sd, strnum, 11, 0)-11;
-	printf("client: got %d characters\n", m+11);
-	validate(m, "recvall 1") else{
-		printf("client: got length: %s\n", strnum);
+	int m, m2, n = -1, len, total = 0;
+	m = recv(sd, strnum, 11, 0) - 11;
+	validate(m, "data receiving") else {
 		len = atoi(strnum);
-		m2=send(sd, strnum, m+11, 0)-(m+11);
-		printf("client: sent %d characters\n", m+11);
-		validate(-(!(!m2)), "recvall 2") else{
-			printf("client: getting data\n");
-			while(total<len)
+		m2 = send(sd, strnum, m + 11, 0) - (m + 11);
+		validate(-(!(!m2)), "data receiving") else {
+			while (total < len)
 			{
-				printf("client: recieving... got %d out of %d\n", total, len);
-				n=recv(sd, buf+total, len-total, 0);
-				validate(n, "recvall 3") else{
+				n = recv(sd, buf + total, len - total, 0);
+				validate(n, "data receiving") else {
 					total += n;
 				}
 			}
 		}
 	}
-	printf("client: recived %s\n", buf);
-	return n==-1?-1:0;
+	return n == -1 ? -1 : 0;
 }
+
+int startsWith(char str[], char prefix[])
+{
+	int r, len = strlen(prefix);
+	char head[18];		// because we only send clientReq to this method.
+	memcpy(head, str, len);
+	head[len + 1] = '\0';
+	r = strcmp(head, prefix) == 0 ? 0 : 1;
+	return r;
+}
+
 int readField(const char field[])
 {
-	int index, r = 0, len=strlen(field);
-	for(index = 0; index < len; index++)
+	int index, r = 0, len = strlen(field);
+	for (index = 0; index < len; index++)
 	{
-		if(getchar()!=field[index])
+		if (getchar() != field[index])
 		{
 			r = -1;
 		}
 	}
 	return r;
 }
+
 void readInto(char buff[], int size)
 {
 	char* r = fgets(buff, size, stdin);
-	validate(-(!r), "readInto")else{
+	validate(-(!r), "readInto")else {
 		int len = strlen(buff);
-		if (*buff && buff[len-1] == '\n') 
-		    buff[len-1] = '\0';
+		if (*buff && buff[len - 1] == '\n')
+			buff[len - 1] = '\0';
 	}
 }
+
 int main(int argc, char* argv[])
 {
-	printf("client: starting\n");
-	char welcomeMessage[WELCOME_LENGTH], username[MAX_USERNAME+1], password[MAX_PASSWORD+1], inbox[INBOX_SIZE+1];
-	char recps[TOTAL_TO*(MAX_USERNAME+1)], subj[MAX_SUBJECT+1], ctnt[MAX_CONTENT+1], inMail[MAIL_SIZE+1];
+	char welcomeMessage[WELCOME_LENGTH], username[MAX_USERNAME + 1], password[MAX_PASSWORD + 1], inbox[INBOX_SIZE + 1];
+	char recps[TOTAL_TO * (MAX_USERNAME + 1)], subj[MAX_SUBJECT + 1], ctnt[MAX_CONTENT + 1], inMail[MAIL_SIZE + 1];
 	char connected[2], clientReq[18], reqNum[3], nmclReq[8], ok[3];
 	int sockDes, recvRet, sendRet, success, numIndex, ar, isGet, portNum;
-	regex_t nmclReqPattern;
-	success = regcomp(&nmclReqPattern, "(GET_MAIL |DELETE_MAIL )[1,9][0,9]*", 0);
-	validate(-(!(!success)), "main 1");
 	/* Initialize address struct: */
-	printf("client: initializing address struct\n");
 	struct sockaddr_in serverAddr;
-	serverAddr.sin_family=AF_INET;
-	if(argc>1) // got ip addr
+	serverAddr.sin_family = AF_INET;
+	if (argc > 1) // got ip addr
 	{
-		success = inet_pton(AF_INET, argv[1], &serverAddr.sin_addr)-1;
-		validate(-(!(!(success-1))), "main 2");
-	}else{
+		inet_pton(AF_INET, argv[1], &serverAddr.sin_addr);
+	} else {
 		inet_aton("127.0.0.1", &serverAddr.sin_addr);
 	}
-	if(argc>2) // got port number
+	if (argc > 2) // got port number
 	{
 		portNum = htons(atoi(argv[2]));
-	}else{
+	} else {
 		portNum = htons(DEFAULT_PORT);
 	}
 	serverAddr.sin_port = portNum;
 	/* Socket initialization */
-	printf("client: initializing socket\n");
 	sockDes = socket(PF_INET, SOCK_STREAM, 0);
-	validate(sockDes, "main 3");
+	validate(sockDes, "socket creation");
 
-	getsockname(sockDes, (struct sockaddr*)&serverAddr, sizeof(serverAddr));
-	printf("client: port number: %d, %d, %d\n", ntohs(serverAddr.sin_port), serverAddr.sin_port, portNum);
 
-	printf("client: made socket\n");
 	success = connect(sockDes, (struct sockaddr *)&serverAddr, sizeof(serverAddr));
-	printf("client: connected\n");
-	validate(success, "main 4");
-	printf("client: validated connection\n");
+	validate(success, "connection");
 	recvRet = recvall(sockDes, welcomeMessage);
-	printf("client: recved welcome message\n");
-	validate(recvRet, "main 5"); //TODO handle?
+	validate(recvRet, "connection"); //TODO handle?
 	printf("%s\n", welcomeMessage);
+
 	/* Authentication */
-	printf("client: user\n");
 	readField("User: ");
 	readInto(username, MAX_USERNAME);
-	printf("client: password\n");
 	readField("Password: ");
 	readInto(password, MAX_PASSWORD);
-	printf("client: sending username and password\n");
 	sendMgetOK(username);
-	sendRet = sendall(sockDes, password, strlen(password)+1); //TODO handle?
-	printf("client: sent username and password\n");
-	validate(sendRet, "main 6"); //TODO handle?
-	printf("client: validated sent username and password\n");
+	sendRet = sendall(sockDes, password, strlen(password) + 1); //TODO handle?
+	validate(sendRet, "data sending"); //TODO handle?
 	recvRet = recvall(sockDes, connected);
-	validate(recvRet, "main 7"); //TODO handle?
-	printf("client: validated recved data\n");
-	if(connected[0] != 'Y')
+	validate(recvRet, "data receiving"); //TODO handle?
+	if (connected[0] != 'Y')
 	{
-		printf("Could not connect to the server.\nUsername and password combination is incorrect\n");
+		printf("Could not connect to the server.\nUsername and password combination is incorrect\n");//Error message on incorrect User/Pass combination
 		success = close(sockDes);
-		validate(success, "main 8");
+		validate(success, "socket closing");
 		return 0;
-	}else{
-		printf("client: Connected to server\n");
+	} else {
+		printf("Connected to server\n");
 		do
 		{
 			readInto(clientReq, 18);
-			if(strcmp(clientReq,"SHOW_INBOX")==0) // Show request
+			if (strcmp(clientReq, "SHOW_INBOX") == 0) // Show request
 			{
+				memset(inbox, 0, INBOX_SIZE + 1);
 				sendRet = sendall(sockDes, "1", 2);
-				validate(sendRet, "main 9"); //TODO handle?
+				validate(sendRet, "data sending"); //TODO handle?
 				recvRet = recvall(sockDes, inbox);
-				validate(recvRet, "main 10"); //TODO handle?
-				printf("%s\n", inbox);
+				validate(recvRet, "data receiving"); //TODO handle?
+				if (strcmp(inbox, "EMPTY"))
+					printf("%s\n", inbox);
 			}
-			else if(strcmp(clientReq, "QUIT")==0) // Quit request
+			else if (strcmp(clientReq, "QUIT") == 0) // Quit request
 			{
-				printf("client: quitting...\n");
 				sendRet = sendall(sockDes, "4", 2);
-				validate(sendRet, "main 11"); //TODO handle?
+				validate(sendRet, "data sending"); //TODO handle?
 			}
-			else if(strcmp(clientReq,"COMPOSE")==0) // Compose request
+			else if (strcmp(clientReq, "COMPOSE") == 0) // Compose request
 			{
 				success = readField("To: ");
-				validate(success, "main 12");
-				readInto(recps, TOTAL_TO*(MAX_USERNAME+1));
+				validate(success, "input reading");
+				readInto(recps, TOTAL_TO * (MAX_USERNAME + 1));
 				success = readField("Subject: ");
-				validate(success, "main 13");
-				readInto(subj, MAX_SUBJECT+1);
+				validate(success, "input reading");
+				readInto(subj, MAX_SUBJECT + 1);
 				success = readField("Text: ");
-				validate(success, "main 14");
-				readInto(ctnt, MAX_CONTENT+1);
+				validate(success, "input reading");
+				readInto(ctnt, MAX_CONTENT + 1);
 				memset(ok, '\0', 3);
 				sendMgetOK("5");
 				sendMgetOK(recps);
@@ -209,52 +197,50 @@ int main(int argc, char* argv[])
 				sendMgetOK(ctnt);
 				printf("Mail sent\n");
 			}
-			else if(!regexec(&nmclReqPattern, clientReq, 0, NULL, 0))
+			else if (startsWith(clientReq, "GET_MAIL") || startsWith(clientReq, "DELETE_MAIL"))
 			{
-				if(clientReq[0]=='G') // Get request
+				if (clientReq[0] == 'G') // Get request
 				{
-					reqNum[0]='2'; reqNum[1]=' ';reqNum[2]='\0';
+					reqNum[0] = '2'; reqNum[1] = ' '; reqNum[2] = '\0';
 					numIndex = 9;
-					ar=1;
-					isGet=1;
+					ar = 1;
+					isGet = 1;
 				}
-				else if(clientReq[0]=='D') // Delete request
+				else if (clientReq[0] == 'D') // Delete request
 				{
-					reqNum[0]='3'; reqNum[1]=' ';reqNum[2]='\0';
-					numIndex = 13;
-					ar=1;
-					isGet=0;
+					reqNum[0] = '3'; reqNum[1] = ' '; reqNum[2] = '\0';
+					numIndex = 12;
+					ar = 1;
+					isGet = 0;
 				}
 				else
 				{
-					handleError();
-					ar=0;
-					isGet=0;
+					handleError("operation loop");
+					ar = 0;
+					isGet = 0;
 				}
-				if(ar)
+				if (ar)
 				{
 					memset(nmclReq, '\0', 8);
 					strcat(nmclReq, reqNum);
 					strcat(nmclReq, &clientReq[numIndex]); //TODO check if this work
 					sendRet = sendall(sockDes, nmclReq, 8);
-					validate(sendRet, "main 15"); //TODO handle?
+					validate(sendRet, "data sending"); //TODO handle?
 					recvRet = recvall(sockDes, inMail);
-					validate(recvRet, "main 16"); //TODO handle?
-					if(isGet)
+					validate(recvRet, "data receiving"); //TODO handle?
+					if (isGet)
 					{
-						printf("%s\n",inMail);
+						printf("%s\n", inMail);
 					}
 				}
 			}
 			else
 			{
-				handleError();
+				handleError("operation loop");
 			}
-		}while(strcmp(clientReq, "QUIT"));
-		printf("client: closing socket\n");
+		} while (strcmp(clientReq, "QUIT"));
 		success = close(sockDes);
-		printf("client: socket closed\n");
-		validate(success, "main 17");
+		validate(success, "socket closing");
 	}
 	return 0;
 }
