@@ -15,17 +15,20 @@ typedef struct mail_t{
     char subject[MAX_SUBJECT+1];
     char content[MAX_CONTENT+1];
 } mail;
-typedef struct user_t {
+typedef struct user_t{
     int id;
     char name[MAX_USERNAME+1];
     mail* inbox[MAXEMAILS];
     int isDeleted[MAXEMAILS]; // bool?
 } user;
-
 /*
 How it works:
 mail:	has array of pointers to recievers, no longer has id.
 user:	has array of pointers to revelant emails (those that were sent to him).
 		mail id = index in array.
 		Items are not removed from the array, instead isDeleted is updated when an email is deleted.
+other:	Every new mail is malloced and the poitner is stored in the individual arrays of the relevant users.
+		Optional: if we don't want a working but shitty code, make a huge array of size MAXMAILS of all mails sent so far.
+		Use it to free all the space malloced to them when necessary (exit, errors, etc.)
+		Also do something similar for users, I guess?
 */
